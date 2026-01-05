@@ -1,0 +1,35 @@
+click>=8.1.0
+Pillow>=10.0.0
+opencv-python>=4.8.0
+reportlab>=4.0.0
+PyYAML>=6.0
+numpy>=1.24.0
+rich>=13.0.0
+
+# Phase 3: Text Detection
+pytesseract>=0.3.10
+
+# Phase 4: MCP Server
+mcp>=1.0.0
+
+# Phase 4: Image Description (Claude Vision API)
+anthropic>=0.40.0
+
+# Phase 3: Braille Conversion
+# Note: liblouis requires system-level installation
+#
+# Installation instructions:
+#   Ubuntu/Debian (WSL):
+#     sudo apt-get install liblouis-dev python3-louis liblouis-data
+#     Then symlink to venv: ln -s /usr/lib/python3/dist-packages/louis venv/lib/python3.12/site-packages/louis
+#
+#   macOS:
+#     brew install liblouis
+#     pip install liblouis
+#
+#   Windows:
+#     Download from https://github.com/liblouis/liblouis/releases
+#     pip install liblouis
+#
+# Fallback: If liblouis is not available, the system uses a simple ASCII-to-Braille converter
+# For full Grade 2 Braille support, liblouis is required
