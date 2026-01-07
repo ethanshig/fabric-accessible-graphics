@@ -49,11 +49,15 @@ class DetectedText:
     height: int
     confidence: float
     is_dimension: bool = False
+    rotation_degrees: float = 0.0  # 0=horizontal, 90=rotated clockwise, -90=counter-clockwise
+    page_number: int = 1  # Page number for multi-page PDF context tracking
 
     def __repr__(self):
         """String representation for debugging."""
         dimension_tag = " [DIMENSION]" if self.is_dimension else ""
-        return (f"DetectedText('{self.text}'{dimension_tag}, "
+        rotation_tag = f" [ROT:{self.rotation_degrees}deg]" if self.rotation_degrees != 0 else ""
+        page_tag = f" [page {self.page_number}]" if self.page_number > 1 else ""
+        return (f"DetectedText('{self.text}'{dimension_tag}{rotation_tag}{page_tag}, "
                 f"pos=({self.x},{self.y}), size=({self.width}x{self.height}), "
                 f"confidence={self.confidence:.1f}%)")
 
@@ -108,12 +112,13 @@ class TextDetector:
                 "Install from: https://github.com/tesseract-ocr/tesseract"
             ) from e
 
-    def detect_text(self, image: Image.Image) -> List[DetectedText]:
+    def detect_text(self, image: Image.Image, page_number: int = 1) -> List[DetectedText]:
         """
         Detect all text in image with bounding boxes.
 
         Args:
             image: Grayscale PIL Image (BEFORE thresholding for better accuracy)
+            page_number: Page number for multi-page PDF context tracking (default 1)
 
         Returns:
             List of DetectedText objects with positions and metadata
@@ -175,7 +180,8 @@ class TextDetector:
                 width=width,
                 height=height,
                 confidence=confidence,
-                is_dimension=is_dimension
+                is_dimension=is_dimension,
+                page_number=page_number
             )
 
             detected_texts.append(detected)

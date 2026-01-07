@@ -1,5 +1,31 @@
 # Braille Whiteout Coordinate System Fix
 
+## Quick Reference
+
+**The Problem:** Whiteout rectangles were **4× too small** because font sizes in **points** were being treated as **pixels**.
+
+**The Solution:** Convert font size from points to pixels at 300 DPI before any dimension calculations.
+
+### Conversion Formula
+```python
+DPI = 300
+POINTS_PER_INCH = 72
+font_size_px = font_size * (DPI / POINTS_PER_INCH)
+# Example: 10 points → 10 × 4.17 ≈ 42 pixels
+```
+
+### Files Changed
+1. **braille_converter.py** - `_estimate_label_width()`, `_check_overlap()`
+2. **processor.py** - `whiteout_braille_regions()`
+3. **pdf_generator.py** - `_add_braille_labels()`
+
+### Verification
+```bash
+python -m fabric_access.cli image-to-piaf Plan_Test.png --detect-text -o test.pdf
+```
+
+---
+
 ## Problem Summary
 
 The Braille whiteout feature had two critical issues:

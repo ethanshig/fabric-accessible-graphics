@@ -5,7 +5,7 @@ Handles loading, converting, and processing images for PIAF output.
 """
 
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 import numpy as np
 from PIL import Image
 import cv2
@@ -481,6 +481,228 @@ class ImageProcessor:
             )
 
         return True, ""
+
+    def scale_image(self, image: Image.Image, scale_percent: float) -> Image.Image:
+        """
+        Enlarge image by a percentage.
+
+        Args:
+            image: PIL Image to scale
+            scale_percent: Scale factor as percentage (100 = no change, 200 = 2x, 150 = 1.5x)
+
+        Returns:
+            Scaled PIL Image
+        """
+        factor = scale_percent / 100
+        new_width = int(image.width * factor)
+        new_height = int(image.height * factor)
+        return image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+
+    def scale_detected_texts(self, detected_texts: List[DetectedText], scale_percent: float) -> List[DetectedText]:
+        """
+        Scale the coordinates of detected text objects to match a scaled image.
+
+        Args:
+            detected_texts: List of DetectedText objects
+            scale_percent: Same scale factor used for the image
+
+        Returns:
+            New list of DetectedText with scaled coordinates
+        """
+        factor = scale_percent / 100
+        scaled_texts = []
+        for text in detected_texts:
+            scaled_text = DetectedText(
+                text=text.text,
+                x=int(text.x * factor),
+                y=int(text.y * factor),
+                width=int(text.width * factor),
+                height=int(text.height * factor),
+                confidence=text.confidence,
+                is_dimension=text.is_dimension
+            )
+            scaled_texts.append(scaled_text)
+        return scaled_texts
+
+    def crop_to_region(
+        self,
+        image: Image.Image,
+        region: Tuple[float, float, float, float],
+        margin_percent: float = 10.0
+    ) -> Image.Image:
+        """
+        Crop image to a region specified in percentages.
+
+        Args:
+            image: PIL Image to crop
+            region: (x_percent, y_percent, width_percent, height_percent)
+                    where each value is 0-100 representing percentage of image dimensions
+            margin_percent: Additional margin around region (default 10%)
+
+        Returns:
+            Cropped PIL Image
+        """
+        x_pct, y_pct, w_pct, h_pct = region
+
+        # Add margin (split evenly on both sides)
+        margin_half = margin_percent / 2
+        x_pct = max(0, x_pct - margin_half)
+        y_pct = max(0, y_pct - margin_half)
+        w_pct = min(100 - x_pct, w_pct + margin_percent)
+        h_pct = min(100 - y_pct, h_pct + margin_percent)
+
+        # Convert percentages to pixels
+        x = int(image.width * x_pct / 100)
+        y = int(image.height * y_pct / 100)
+        w = int(image.width * w_pct / 100)
+        h = int(image.height * h_pct / 100)
+
+        # Ensure we don't exceed image bounds
+        x2 = min(x + w, image.width)
+        y2 = min(y + h, image.height)
+
+        return image.crop((x, y, x2, y2))
+
+    def adjust_to_aspect_ratio(
+        self,
+        image: Image.Image,
+        paper_size: str = 'letter'
+    ) -> Image.Image:
+        """
+        Crop image to match paper aspect ratio (centered crop).
+
+        This ensures the zoomed region fills the page without distortion
+        by cropping excess width or height.
+
+        Args:
+            image: PIL Image to adjust
+            paper_size: 'letter' (8.5x11) or 'tabloid' (11x17)
+
+        Returns:
+            Cropped PIL Image matching paper aspect ratio
+        """
+        # Paper aspect ratios (portrait orientation)
+        paper_ratios = {
+            'letter': 8.5 / 11.0,   # ~0.773
+            'tabloid': 11.0 / 17.0  # ~0.647
+        }
+        target_ratio = paper_ratios.get(paper_size, paper_ratios['letter'])
+
+        current_ratio = image.width / image.height
+
+        if current_ratio > target_ratio:
+            # Image is too wide - crop sides (centered)
+            new_width = int(image.height * target_ratio)
+            offset = (image.width - new_width) // 2
+            return image.crop((offset, 0, offset + new_width, image.height))
+        elif current_ratio < target_ratio:
+            # Image is too tall - crop top/bottom (centered)
+            new_height = int(image.width / target_ratio)
+            offset = (image.height - new_height) // 2
+            return image.crop((0, offset, image.width, offset + new_height))
+        else:
+            # Already correct aspect ratio
+            return image
+
+    def scale_to_fill_page(
+        self,
+        image: Image.Image,
+        paper_size: str = 'letter',
+        dpi: int = 300
+    ) -> Image.Image:
+        """
+        Scale image up to fill the page at specified DPI.
+
+        This is used after cropping and aspect ratio adjustment to ensure
+        the zoomed region fills the entire page.
+
+        Args:
+            image: PIL Image (should already match paper aspect ratio)
+            paper_size: 'letter' (8.5x11) or 'tabloid' (11x17)
+            dpi: Target DPI (default 300 for PIAF)
+
+        Returns:
+            Scaled PIL Image that fills the page
+        """
+        # Paper sizes in inches
+        paper_sizes = {
+            'letter': (8.5, 11.0),
+            'tabloid': (11.0, 17.0)
+        }
+
+        paper_width, paper_height = paper_sizes.get(paper_size, paper_sizes['letter'])
+
+        # Target size in pixels
+        target_width = int(paper_width * dpi)
+        target_height = int(paper_height * dpi)
+
+        # Scale to fit within page (use smaller scale factor to fit)
+        width_scale = target_width / image.width
+        height_scale = target_height / image.height
+        scale_factor = min(width_scale, height_scale)
+
+        new_width = int(image.width * scale_factor)
+        new_height = int(image.height * scale_factor)
+
+        return image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+
+    def filter_texts_in_region(
+        self,
+        detected_texts: List[DetectedText],
+        region: Tuple[float, float, float, float],
+        original_image_size: Tuple[int, int],
+        margin_percent: float = 10.0
+    ) -> List[DetectedText]:
+        """
+        Filter detected texts to only include those within a zoom region,
+        and adjust their coordinates relative to the cropped area.
+
+        Args:
+            detected_texts: List of DetectedText objects with pixel coordinates
+            region: (x_percent, y_percent, width_percent, height_percent)
+            original_image_size: (width, height) of the original image
+            margin_percent: Margin that was applied to the region
+
+        Returns:
+            List of DetectedText with coordinates adjusted to cropped image
+        """
+        orig_width, orig_height = original_image_size
+        x_pct, y_pct, w_pct, h_pct = region
+
+        # Apply same margin calculation as crop_to_region
+        margin_half = margin_percent / 2
+        x_pct = max(0, x_pct - margin_half)
+        y_pct = max(0, y_pct - margin_half)
+        w_pct = min(100 - x_pct, w_pct + margin_percent)
+        h_pct = min(100 - y_pct, h_pct + margin_percent)
+
+        # Calculate crop boundaries in pixels
+        crop_x = int(orig_width * x_pct / 100)
+        crop_y = int(orig_height * y_pct / 100)
+        crop_x2 = min(int(orig_width * (x_pct + w_pct) / 100), orig_width)
+        crop_y2 = min(int(orig_height * (y_pct + h_pct) / 100), orig_height)
+
+        filtered_texts = []
+        for text in detected_texts:
+            # Check if text center is within the crop region
+            text_center_x = text.x + text.width / 2
+            text_center_y = text.y + text.height / 2
+
+            if (crop_x <= text_center_x <= crop_x2 and
+                crop_y <= text_center_y <= crop_y2):
+                # Adjust coordinates relative to cropped image
+                adjusted_text = DetectedText(
+                    text=text.text,
+                    x=max(0, int(text.x - crop_x)),
+                    y=max(0, int(text.y - crop_y)),
+                    width=text.width,
+                    height=text.height,
+                    confidence=text.confidence,
+                    is_dimension=text.is_dimension
+                )
+                filtered_texts.append(adjusted_text)
+
+        return filtered_texts
 
     def process(self, input_path: str, threshold: int = 128,
                 check_density_flag: bool = True,

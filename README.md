@@ -27,7 +27,7 @@ This toolkit helps convert visual images into tactile graphics suitable for prin
 - **Image Tiling**: Automatically split large images into multiple pages with registration marks for assembly
 - **Automatic Density Reduction**: Automatically fix high-density images that would cause paper curling
 
-### Phase 3 Features (NEW!)
+### Phase 3 Features
 - **Text & Dimension Detection**: OCR-based detection of dimensions and labels using Tesseract
 - **Braille Conversion**: Automatic Braille label generation (Grade 1 and 2) using Liblouis
 - **Unicode Braille Labels**: Overlaid on PDFs for tactile reading
@@ -35,6 +35,12 @@ This toolkit helps convert visual images into tactile graphics suitable for prin
 - **Configurable Placement**: Overlay or margin positioning for Braille labels
 - **Text Whiteout**: Original text removed before Braille placement (prevents PIAF overlap)
 - **Automatic Overlap Prevention**: Overlapping Braille labels automatically repositioned
+- **Auto-Scaling**: Automatically enlarge images so Braille labels fit in original text boxes
+- **Abbreviation Key**: Labels that don't fit get letter codes (A, B, C...) with key page
+- **Region Zoom**: Crop to specific regions and scale to fill page (e.g., zoom to just the kitchen)
+- **LLM-Assisted Zoom (MCP)**: Natural language zoom ("zoom to bedroom") with Claude vision
+- **Multi-Region Output**: Multiple zoom regions generate single multi-page PDF
+- **Unlimited Scale**: No cap on auto-scaling (warning at 300%+)
 
 ## Installation
 
@@ -316,6 +322,50 @@ ln -s /usr/lib/python3/dist-packages/louis venv/lib/python3.12/site-packages/lou
 fabric-access batch ./plans ./output --detect-text --preset floor_plan --verbose
 ```
 
+## Region Zoom
+
+Zoom into specific regions of an image and scale to fill the page. Useful for focusing on individual rooms or details.
+
+### CLI Usage
+
+```bash
+# Zoom to a region using percentages (x%, y%, width%, height%)
+# This example zooms to a region starting at 25% from left, 30% from top,
+# with 50% width and 40% height
+fabric-access image-to-piaf floor-plan.jpg --zoom-region 25,30,50,40 --verbose
+
+# Combine zoom with text detection
+fabric-access image-to-piaf plan.png --zoom-region 10,10,40,40 --detect-text
+```
+
+### MCP Usage (Natural Language)
+
+When using the MCP server with Claude, you can use natural language zoom:
+
+```
+"Convert floor-plan.jpg and zoom to the kitchen"
+"Convert plan.png, zoom to Bedroom 1"
+"Zoom to the upper-left quadrant of this drawing"
+```
+
+Claude will use vision to identify the requested region and automatically apply the zoom.
+
+### Multi-Region Zoom (MCP)
+
+Generate a multi-page PDF with each region on its own page:
+
+```
+"Convert floor-plan.jpg with separate pages for each bedroom"
+```
+
+### How Zoom Works
+
+1. **Crop**: Extracts the specified region with a 10% margin
+2. **Aspect Ratio**: Adjusts to match paper proportions (8.5:11 for letter)
+3. **Scale to Fill**: Enlarges the cropped region to fill the entire page at 300 DPI
+
+Output filenames include the zoom target when applicable (e.g., `floor-plan_kitchen_piaf.pdf`).
+
 ## Supported File Formats
 
 Input formats:
@@ -358,6 +408,7 @@ Options:
 - `--detect-text`: Enable OCR-based text and dimension detection
 - `--braille-grade GRADE`: Braille grade (1 or 2, default: 1)
 - `--braille-placement PLACEMENT`: Label placement (overlay or margin, default: overlay)
+- `--zoom-region X,Y,W,H`: Zoom to region (percentages 0-100, e.g., 25,30,50,40)
 - `--verbose, -v`: Show detailed progress messages
 - `--interactive, -i`: Interactive mode with step-by-step prompts
 - `--config PATH`: Path to custom tactile_standards.yaml configuration

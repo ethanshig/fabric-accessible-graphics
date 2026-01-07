@@ -505,6 +505,100 @@ Planned features:
    - Embed Braille fonts in PDF
    - Ensure consistent rendering
 
+## Integration Workflow
+
+This section describes how the Braille conversion module integrates into the overall processing pipeline.
+
+### Workflow Overview
+
+```
+INPUT: Architectural Drawing (PDF, PNG, JPG, etc.)
+                    │
+                    ▼
+        Phase 1: Image Processing
+        - Load image, convert to B&W
+        - Density analysis (< 45% black)
+                    │
+                    ▼
+        Phase 2: Text Detection (Optional)
+        - OCR with Tesseract
+        - Detect dimensions, room labels
+        - Extract bounding boxes
+        - Output: List[DetectedText]
+                    │
+                    ▼
+        Phase 3: Braille Conversion (if enabled)
+        - Convert text to Unicode Braille via Liblouis
+        - Calculate label positions with offsets
+        - Optional: Check for overlaps
+        - Output: List[BrailleLabel]
+                    │
+                    ▼
+        Phase 4: PDF Generation (PIAF-ready)
+        - Create PDF canvas (ReportLab)
+        - Draw B&W image
+        - Add Braille labels (if provided)
+        - Save PDF at 300 DPI
+                    │
+                    ▼
+OUTPUT: PIAF-ready PDF with Braille labels
+```
+
+### Data Flow
+
+**Input (from text detection):**
+```python
+DetectedText(
+    text="Kitchen",      # Detected text
+    x=600,               # Left position (pixels)
+    y=1200,              # Top position (pixels)
+    width=150,           # Bounding box width
+    height=30            # Bounding box height
+)
+```
+
+**Output (after Braille conversion):**
+```python
+BrailleLabel(
+    braille_text="⠅⠊⠞⠉⠓⠑⠝",  # Unicode Braille
+    x=605,                        # Adjusted X (original + offset_x)
+    y=1190,                       # Adjusted Y (original + offset_y)
+    original_text="Kitchen",      # Original text
+    width=70                      # Estimated width in pixels
+)
+```
+
+### Integration Points
+
+**With Text Detection:**
+```python
+detected_texts = text_detector.detect_all_text(image)
+braille_labels = braille_converter.create_braille_labels(detected_texts)
+```
+
+**With PDF Generator:**
+```python
+pdf_gen.generate(
+    image=image,
+    output_path="output.pdf",
+    braille_labels=braille_labels  # Optional parameter
+)
+```
+
+### Auto-Scaling and Abbreviation Key (New)
+
+When Braille labels are too large to fit in the original text bounding boxes, the system can:
+
+1. **Auto-scale the image** - Enlarge up to `max_scale_factor` (default 200%)
+2. **Generate abbreviation key** - Labels that still don't fit get letter codes (A, B, C...) with a key page at the beginning
+
+```python
+# New parameters in convert_to_tactile():
+auto_scale=True,           # Enable auto-scaling
+max_scale_factor=2.0,      # Max 200% enlargement
+use_abbreviation_key=True  # Enable key generation
+```
+
 ## References
 
 - [Liblouis Documentation](https://liblouis.io/)

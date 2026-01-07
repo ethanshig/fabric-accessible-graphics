@@ -53,7 +53,8 @@ def _get_cache_file(image_path: str) -> Path:
 def cache_tesseract_results(
     image_path: str,
     results: List[Any],
-    image_size: tuple = None
+    image_size: tuple = None,
+    grid_info: dict = None
 ) -> bool:
     """
     Cache Tesseract OCR results for later retrieval.
@@ -62,6 +63,7 @@ def cache_tesseract_results(
         image_path: Path to the source image
         results: List of DetectedText objects (will be serialized)
         image_size: Optional tuple of (width, height) to cache
+        grid_info: Optional dict with grid overlay info (rows, cols, path)
 
     Returns:
         True if caching succeeded, False otherwise
@@ -79,7 +81,9 @@ def cache_tesseract_results(
                 'width': r.width,
                 'height': r.height,
                 'confidence': r.confidence,
-                'is_dimension': r.is_dimension
+                'is_dimension': r.is_dimension,
+                'rotation_degrees': getattr(r, 'rotation_degrees', 0.0),
+                'page_number': getattr(r, 'page_number', 1)
             })
 
         cache_data = {
@@ -91,6 +95,9 @@ def cache_tesseract_results(
 
         if image_size:
             cache_data['image_size'] = list(image_size)
+
+        if grid_info:
+            cache_data['grid_info'] = grid_info
 
         with open(cache_file, 'w') as f:
             json.dump(cache_data, f)
@@ -140,10 +147,16 @@ def load_cached_tesseract(
             f"{cache_data.get('count', 0)} results, age {age:.0f}s"
         )
 
-        return {
+        result = {
             'results': cache_data.get('results', []),
             'image_size': tuple(cache_data.get('image_size', [0, 0]))
         }
+
+        # Include grid_info if present
+        if 'grid_info' in cache_data:
+            result['grid_info'] = cache_data['grid_info']
+
+        return result
 
     except Exception as e:
         logger.warning(f"Failed to load cached results: {e}")

@@ -17,6 +17,7 @@ from typing import List, Dict, Any, Optional, Tuple
 import logging
 
 from .text_detector import DetectedText, TextDetector, TextDetectionConfig
+from .grid_overlay import grid_cell_to_percent
 
 logger = logging.getLogger("fabric-access.hybrid")
 
@@ -58,7 +59,8 @@ class HybridTextDetector:
         self,
         tesseract_results: List[DetectedText],
         claude_results: List[Dict[str, Any]],
-        image_size: Tuple[int, int]
+        image_size: Tuple[int, int],
+        grid_info: Optional[Dict[str, Any]] = None
     ) -> List[DetectedText]:
         """
         Merge Tesseract positions with Claude text readings.
@@ -67,13 +69,14 @@ class HybridTextDetector:
             tesseract_results: List of DetectedText from Tesseract OCR
             claude_results: List of dicts from Claude Vision with keys:
                 - text: The text content
-                - x_percent: X position as percentage (0-100)
-                - y_percent: Y position as percentage (0-100)
+                - x_percent: X position as percentage (0-100) OR
+                - grid_cell: Grid cell reference (e.g., "C4") when grid mode is enabled
                 - width_percent: Width as percentage (optional)
                 - height_percent: Height as percentage (optional)
                 - type: 'printed', 'handwritten', or 'dimension'
                 - confidence: 'high', 'medium', or 'low'
             image_size: Tuple of (width, height) in pixels
+            grid_info: Optional dict with grid info (rows, cols) for grid_cell conversion
 
         Returns:
             List of DetectedText objects with merged data
@@ -85,9 +88,9 @@ class HybridTextDetector:
             tesseract_results, claude_results
         )
 
-        # Step 2: Handle unmatched Claude texts (use normalized coords)
+        # Step 2: Handle unmatched Claude texts (use normalized coords or grid_cell)
         unmatched_results = self._handle_unmatched(
-            claude_results, image_size
+            claude_results, image_size, grid_info
         )
 
         # Combine results
@@ -143,6 +146,8 @@ class HybridTextDetector:
 
             if best_match is not None:
                 # Create merged result: Claude's text + Tesseract's position
+                # Use rotation from Claude's data (Claude can detect rotated text)
+                rotation = float(claude_item.get('rotation_degrees', 0.0))
                 merged = DetectedText(
                     text=claude_text,  # Use Claude's accurate reading
                     x=best_match.x,
@@ -150,7 +155,8 @@ class HybridTextDetector:
                     width=best_match.width,
                     height=best_match.height,
                     confidence=best_score * 100,  # Convert to percentage
-                    is_dimension=claude_item.get('type') == 'dimension'
+                    is_dimension=claude_item.get('type') == 'dimension',
+                    rotation_degrees=rotation
                 )
                 matched.append(merged)
                 used_tesseract.add(best_index)
@@ -192,17 +198,19 @@ class HybridTextDetector:
     def _handle_unmatched(
         self,
         claude_results: List[Dict[str, Any]],
-        image_size: Tuple[int, int]
+        image_size: Tuple[int, int],
+        grid_info: Optional[Dict[str, Any]] = None
     ) -> List[DetectedText]:
         """
         Convert unmatched Claude results using normalized coordinates.
 
         For text that Claude found but Tesseract missed, we use Claude's
-        percentage-based position estimates converted to pixels.
+        percentage-based position estimates OR grid_cell references converted to pixels.
 
         Args:
             claude_results: Claude Vision extraction results
             image_size: Tuple of (width, height) in pixels
+            grid_info: Optional dict with grid info (rows, cols) for grid_cell conversion
 
         Returns:
             List of DetectedText for unmatched items
@@ -219,7 +227,7 @@ class HybridTextDetector:
             if not text:
                 continue
 
-            # Convert percentages to pixels
+            # Check for grid_cell first
             x_percent = item.get('x_percent', 0)
             y_percent = item.get('y_percent', 0)
             w_percent = item.get('width_percent', 5)  # Default 5% width
@@ -240,6 +248,9 @@ class HybridTextDetector:
                 item.get('confidence', 'medium'), 50.0
             )
 
+            # Get rotation from Claude's data (default to 0 for horizontal)
+            rotation = float(item.get('rotation_degrees', 0.0))
+            
             unmatched.append(DetectedText(
                 text=text,
                 x=x,
@@ -247,12 +258,13 @@ class HybridTextDetector:
                 width=w,
                 height=h,
                 confidence=confidence,
-                is_dimension=item.get('type') == 'dimension'
+                is_dimension=item.get('type') == 'dimension',
+                rotation_degrees=rotation
             ))
 
             self.logger.debug(
                 f"Unmatched (using estimated coords): '{text}' "
-                f"at ({x}, {y}) from ({x_percent}%, {y_percent}%)"
+                f"at ({x}, {y}) from ({x_percent}%, {y_percent}%), rotation={rotation}deg"
             )
 
         return unmatched

@@ -6,9 +6,29 @@ for PDF rendering on tactile graphics.
 """
 
 from dataclasses import dataclass
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
 from fabric_access.utils.logger import AccessibleLogger
+
+# Braille rendering constants (at 300 DPI)
+BRAILLE_DPI = 300
+BRAILLE_FONT_SIZE_POINTS = 10
+BRAILLE_FONT_SIZE_PX = BRAILLE_FONT_SIZE_POINTS * (BRAILLE_DPI / 72)  # ~41.67
+BRAILLE_CHAR_WIDTH_PX = BRAILLE_FONT_SIZE_PX * 0.6  # ~25 pixels per character
+
+__all__ = [
+    'BrailleConversionError',
+    'BrailleConfig',
+    'DetectedText',
+    'BrailleLabel',
+    'SymbolKeyEntry',
+    'KeyEntry',
+    'BrailleConverter',
+    'BRAILLE_DPI',
+    'BRAILLE_FONT_SIZE_POINTS',
+    'BRAILLE_FONT_SIZE_PX',
+    'BRAILLE_CHAR_WIDTH_PX',
+]
 
 
 class BrailleConversionError(Exception):
@@ -83,12 +103,14 @@ class BrailleLabel:
         y: Y coordinate for label placement in pixels
         original_text: Original text before Braille conversion
         width: Estimated width of Braille label in pixels (optional)
+        rotation_degrees: Rotation angle for the label (0=horizontal, 90=clockwise, -90=counter-clockwise)
     """
     braille_text: str
     x: int
     y: int
     original_text: str
     width: Optional[int] = None
+    rotation_degrees: float = 0.0  # 0=horizontal, 90=rotated clockwise, -90=counter-clockwise
 
 
 @dataclass
@@ -109,6 +131,14 @@ class SymbolKeyEntry:
     original_text: str
     x: int
     y: int
+
+
+@dataclass
+class KeyEntry:
+    """Entry for the abbreviation key."""
+    letter: str          # "A", "B", etc.
+    original_text: str   # "Kitchen"
+    braille_full: str    # Full Braille translation "⠠⠅⠊⠞⠉⠓⠑⠝"
 
 
 class BrailleConverter:
@@ -354,6 +384,24 @@ class BrailleConverter:
             second = chr(ord('a') + (index % 26))
             return first + second
 
+    def _get_next_key_letter(self, index: int) -> str:
+        """
+        Convert index to letter(s): 0->A, 25->Z, 26->AA, 27->AB, etc.
+
+        Args:
+            index: Zero-based index of the letter to generate
+
+        Returns:
+            Letter string (e.g., "A", "B", "Z", "AA", "AB")
+        """
+        if index < 26:
+            return chr(ord('A') + index)
+        else:
+            # For > 26, use AA, AB, AC, etc.
+            first = chr(ord('A') + (index // 26) - 1)
+            second = chr(ord('A') + (index % 26))
+            return first + second
+
     def _would_overlap(self, box: tuple, placed_boxes: list) -> bool:
         """
         Check if a bounding box would overlap with any placed boxes.
@@ -488,7 +536,12 @@ class BrailleConverter:
 
         return False
 
-    def create_braille_labels(self, detected_texts: List[DetectedText]) -> Tuple[List[BrailleLabel], List[SymbolKeyEntry]]:
+    def create_braille_labels(
+        self,
+        detected_texts: List[DetectedText],
+        generate_key: bool = False,
+        detected_text_widths: Optional[Dict[str, int]] = None
+    ) -> Union[Tuple[List[BrailleLabel], List[SymbolKeyEntry]], Tuple[List[BrailleLabel], List[KeyEntry]]]:
         """
         Convert detected texts to positioned Braille labels.
 
@@ -497,26 +550,41 @@ class BrailleConverter:
         overlapping labels are replaced with symbols (a, b, c, etc.) and
         tracked in a separate key list.
 
+        When generate_key=True, labels that don't fit in their original bounding
+        box are abbreviated to letters (A, B, C, ...) and a key is generated
+        mapping letters to original text.
+
         Args:
             detected_texts: List of DetectedText objects from text detection
+            generate_key: If True, generate abbreviation key for labels that don't fit
+            detected_text_widths: Optional dict mapping text to original bounding box width
 
         Returns:
-            Tuple of (braille_labels, symbol_key_entries):
-                - braille_labels: List of BrailleLabel objects ready for PDF rendering
-                - symbol_key_entries: List of SymbolKeyEntry objects for the key page
+            When generate_key=False:
+                Tuple of (braille_labels, symbol_key_entries):
+                    - braille_labels: List of BrailleLabel objects ready for PDF rendering
+                    - symbol_key_entries: List of SymbolKeyEntry objects for the key page
+            When generate_key=True:
+                Tuple of (braille_labels, key_entries):
+                    - braille_labels: List of BrailleLabel objects ready for PDF rendering
+                    - key_entries: List of KeyEntry objects for the abbreviation key
         """
         if not detected_texts:
             self.logger.info("No text detected for Braille conversion")
+            if generate_key:
+                return [], []
             return [], []
 
         self.logger.progress(f"Converting {len(detected_texts)} text items to Braille")
 
         braille_labels = []
         symbol_key_entries = []  # Track symbols for overlapping labels
+        key_entries = []  # Track abbreviation key entries when generate_key=True
         placed_boxes = []  # Track (x, y, width, height) of placed labels
         skipped_count = 0
         repositioned_count = 0
         symbol_count = 0
+        key_letter_index = 0  # Track next letter for key generation
 
         # Convert font size from points to pixels for height calculation
         DPI = 300
@@ -541,13 +609,58 @@ class BrailleConverter:
                 # Estimate label width
                 label_width = self._estimate_label_width(braille_text)
 
+                # Get rotation from detected text (default to 0 if not present)
+                rotation = getattr(detected, 'rotation_degrees', 0.0)
+
+                # Handle key generation if enabled
+                final_braille_text = braille_text
+                final_original_text = detected.text
+                final_label_width = label_width
+
+                if generate_key:
+                    # Check if Braille text will fit in original bounding box
+                    original_width = None
+                    if detected_text_widths and detected.text in detected_text_widths:
+                        original_width = detected_text_widths[detected.text]
+                    elif detected.width > 0:
+                        original_width = detected.width
+
+                    if original_width is not None:
+                        # Calculate Braille width using the constant
+                        braille_width = len(braille_text) * BRAILLE_CHAR_WIDTH_PX
+
+                        if braille_width > original_width:
+                            # Braille doesn't fit - use abbreviation letter
+                            letter = self._get_next_key_letter(key_letter_index)
+                            key_letter_index += 1
+
+                            # Convert letter to Braille (with capital indicator)
+                            letter_braille = self.convert_text(letter)
+
+                            # Create key entry
+                            key_entries.append(KeyEntry(
+                                letter=letter,
+                                original_text=detected.text,
+                                braille_full=braille_text
+                            ))
+
+                            # Use abbreviated label
+                            final_braille_text = letter_braille
+                            final_original_text = letter
+                            final_label_width = self._estimate_label_width(letter_braille)
+
+                            self.logger.info(
+                                f"Using key letter '{letter}' for: {detected.text[:20]}..."
+                            )
+
                 # Create initial label
                 label = BrailleLabel(
-                    braille_text=braille_text,
+                    braille_text=final_braille_text,
                     x=label_x,
                     y=label_y,
-                    original_text=detected.text,
-                    width=label_width
+                    original_text=final_original_text,
+                    width=final_label_width,
+                    rotation_degrees=rotation
                 )
 
                 # Find clear position (may reposition if needed)
@@ -565,12 +678,14 @@ class BrailleConverter:
 
                             # Create symbol label at original position
                             # Symbols are small, so they should fit
+                            # Note: Symbols are always rendered horizontally (rotation=0)
                             symbol_label = BrailleLabel(
                                 braille_text=symbol_braille,
                                 x=label_x,
                                 y=label_y,
                                 original_text=symbol,  # Store symbol as original for reference
-                                width=self._estimate_label_width(symbol_braille)
+                                width=self._estimate_label_width(symbol_braille),
+                                rotation_degrees=0.0  # Symbols always horizontal
                             )
 
                             # Track the symbol mapping
@@ -605,7 +720,7 @@ class BrailleConverter:
 
                 # Add to results and track placement
                 braille_labels.append(label)
-                placed_boxes.append((label.x, label.y, label_width, label_height))
+                placed_boxes.append((label.x, label.y, final_label_width, label_height))
 
             except BrailleConversionError as e:
                 self.logger.warning(f"Skipping text due to conversion error: {str(e)}")
@@ -623,9 +738,14 @@ class BrailleConverter:
         if symbol_count > 0:
             self.logger.info(f"Used {symbol_count} symbols for overlapping labels (see key page)")
 
+        if len(key_entries) > 0:
+            self.logger.info(f"Generated {len(key_entries)} key entries for abbreviated labels")
+
         if skipped_count > 0:
             self.logger.info(f"Skipped {skipped_count} items (conversion errors)")
 
+        if generate_key:
+            return braille_labels, key_entries
         return braille_labels, symbol_key_entries
 
     def create_braille_label_from_text(self, text: str, x: int, y: int) -> Optional[BrailleLabel]:

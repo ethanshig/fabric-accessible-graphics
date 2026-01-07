@@ -1,15 +1,16 @@
 # Braille Conversion Feature - Current Status
 
-**Last Updated:** December 20, 2025
+**Last Updated:** January 7, 2026
 **Status:** ✅ FULLY OPERATIONAL - Production Ready
 
 ## Quick Summary
 
 The Dimensions to Braille conversion feature is **complete and working**. Text and dimensions are detected via OCR, converted to proper Unicode Braille using liblouis, and rendered correctly in PDFs with DejaVu Sans font.
 
-**New in Dec 20 update:**
-- ✅ Original text is whited out before Braille placement (prevents PIAF overlap)
-- ✅ Overlapping Braille labels are automatically repositioned
+**New in Jan 7, 2026 update:**
+- ✅ Auto-scaling: Images automatically enlarged so Braille labels fit in original text boxes
+- ✅ Abbreviation key: Labels that don't fit get letter codes (A, B, C...) with key page at beginning
+- ✅ New label fit analysis module (`label_scaler.py`)
 
 ## Current Capabilities
 
@@ -22,6 +23,8 @@ The Dimensions to Braille conversion feature is **complete and working**. Text a
 ✅ **Dimension Formats** - Supports feet-inches (10'-6"), meters (3.5m), mm, cm
 ✅ **PDF Integration** - Labels overlay on architectural drawings
 ✅ **Multi-page Tiling** - Works with tiled large images
+✅ **Auto-Scaling** - Images enlarged up to 200% to fit Braille labels (NEW)
+✅ **Abbreviation Key** - Key page with letter codes for oversized labels (NEW)
 
 ## How to Use
 
@@ -35,6 +38,52 @@ fabric-access image-to-piaf plan.jpg --detect-text --braille-grade 2
 # With tiling for large images
 fabric-access image-to-piaf large.jpg --detect-text --enable-tiling --paper-size tabloid
 ```
+
+## Recent Fixes (Jan 7, 2026)
+
+### Session: Auto-Scaling & Abbreviation Key
+**Problem:** Braille labels significantly larger than original text, causing overlaps and page overflow
+**Root Causes:**
+1. Scale: Braille cells are physically larger than print text
+2. Length: Braille translations can be longer (especially Grade 2 contractions)
+
+**Solutions Implemented:**
+
+1. **Auto-Scaling**
+   - New `label_scaler.py` module analyzes label fit
+   - Calculates recommended scale based on largest Braille-to-text ratio
+   - Images scaled up to `max_scale_factor` (default 200%)
+   - Coordinates scaled proportionally
+   - Tiling handles oversized scaled images
+
+2. **Abbreviation Key**
+   - Labels that don't fit after scaling get letters (A, B, C...)
+   - Key page generated at beginning of PDF
+   - Shows Braille + print for each abbreviation
+   - `KeyEntry` dataclass in `braille_converter.py`
+
+**Files Modified:**
+- `src/fabric_access/core/label_scaler.py` (NEW)
+- `src/fabric_access/core/processor.py` - Added `scale_image()`, `scale_detected_texts()`
+- `src/fabric_access/core/braille_converter.py` - Added `KeyEntry`, key generation
+- `src/fabric_access/core/pdf_generator.py` - Added `add_abbreviation_key_page()`
+- `src/fabric_access/mcp_server/tools.py` - New parameters and scaling logic
+
+**New MCP Parameters:**
+```python
+auto_scale=True              # Enable auto-scaling
+max_scale_factor=2.0         # Maximum 200% scale
+scale_percent=None           # Manual override
+use_abbreviation_key=True    # Enable key generation
+force_abbreviation_key=False # Abbreviate ALL labels
+```
+
+**Test Results:**
+- plan_test.jpg: "Kitchen" and "Bathroom" abbreviated to A and B
+- Short labels like "OK" kept full Braille
+- Key page correctly generated
+
+---
 
 ## Recent Fixes (Dec 20, 2025)
 
@@ -226,10 +275,10 @@ braille:
 
 ## Known Limitations
 
-1. **No Automatic Repositioning** - Overlaps are detected but not resolved
-2. **Overlay Only** - Margin placement not yet implemented
-3. **Single Line** - No multi-line label wrapping
-4. **Font Dependency** - Requires DejaVu Sans (graceful fallback to Helvetica)
+1. **Overlay Only** - Margin placement not yet implemented
+2. **Single Line** - No multi-line label wrapping
+3. **Font Dependency** - Requires DejaVu Sans (graceful fallback to Helvetica)
+4. **English Only** - Currently only supports English Braille tables
 
 ## Sample Output
 
@@ -318,7 +367,10 @@ python -c "from reportlab.pdfbase import pdfmetrics; \
 - [x] Error handling & fallbacks
 - [x] Documentation complete
 - [x] CLI integration working
+- [x] Auto-scaling for oversized labels (NEW)
+- [x] Abbreviation key generation (NEW)
+- [x] MCP server integration (NEW)
 
 ## Status: ✅ READY FOR PRODUCTION USE
 
-The Dimensions to Braille conversion feature is fully operational and has been tested with real architectural drawings. All issues have been resolved and the system produces high-quality Unicode Braille labels that render correctly in PDFs.
+The Dimensions to Braille conversion feature is fully operational and has been tested with real architectural drawings. All issues have been resolved and the system produces high-quality Unicode Braille labels that render correctly in PDFs. Auto-scaling and abbreviation key features ensure labels fit properly even when Braille is larger than original text.

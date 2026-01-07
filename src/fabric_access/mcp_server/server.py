@@ -28,7 +28,8 @@ from fabric_access.mcp_server.tools import (
     list_presets,
     analyze_image,
     describe_image,
-    extract_text_with_vision
+    extract_text_with_vision,
+    assess_tactile_quality
 )
 
 # Initialize MCP server
@@ -43,6 +44,7 @@ mcp.tool()(list_presets)
 mcp.tool()(analyze_image)
 mcp.tool()(describe_image)
 mcp.tool()(extract_text_with_vision)
+mcp.tool()(assess_tactile_quality)
 
 
 # ============================================================================
@@ -182,6 +184,89 @@ IMPORTANT:
 - For rotated text, use the bounding box that would contain it
 - Do not include decorative elements or hatching patterns
 - Return empty array [] if no text is found'''
+
+
+@mcp.resource("zoom-region-finder://prompt")
+def get_zoom_region_finder_prompt() -> str:
+    """
+    Prompt for Claude to identify zoom regions in architectural drawings.
+
+    This prompt guides Claude's vision capability to find specific regions
+    (rooms, features, areas) that the user wants to zoom into.
+
+    Usage: Read this resource when convert_to_tactile returns phase="zoom_region_identification",
+    then use vision to identify the requested region and return coordinates.
+    """
+    return '''You are identifying a specific region in an architectural drawing for zooming.
+
+Your task: Find the region(s) matching the user's description and return their coordinates.
+
+SEARCH STRATEGIES:
+
+1. TEXT LABELS: Look for printed labels matching or similar to the target
+   - Room names: "BEDROOM", "Kitchen", "LIVING ROOM", "Bath"
+   - May be centered in rooms or along walls
+   - Check for numbered variants: "Bedroom 1", "Bath 2"
+
+2. ROOM SHAPES: If no label, identify rooms by:
+   - Shape and size (bedrooms typically rectangular, bathrooms smaller)
+   - Fixtures visible (kitchen has counters/appliances, bathroom has fixtures)
+   - Position (master bedroom often largest, near master bath)
+
+3. FEATURES: For non-room targets:
+   - "staircase" - look for stair symbols, hatched areas, or stair labels
+   - "entrance" / "entry" - look for main door, foyer area
+   - "garage" - typically large rectangular space with car door symbol
+   - "closet" - small spaces adjacent to bedrooms
+
+4. SPATIAL REFERENCES: For directional targets:
+   - "upper-left" = x: 0-50%, y: 0-50%
+   - "upper-right" = x: 50-100%, y: 0-50%
+   - "lower-left" = x: 0-50%, y: 50-100%
+   - "lower-right" = x: 50-100%, y: 50-100%
+   - "center" = x: 25-75%, y: 25-75%
+   - "north side" - check for north arrow orientation
+
+OUTPUT FORMAT:
+Return a JSON array with ALL matching regions. For each region:
+
+[
+  {
+    "label": "Bedroom 1",
+    "x_percent": 25,
+    "y_percent": 30,
+    "width_percent": 30,
+    "height_percent": 25,
+    "confidence": "high"
+  }
+]
+
+COORDINATE RULES:
+- All values are percentages (0-100) of image dimensions
+- x_percent: distance from LEFT edge to region's left edge
+- y_percent: distance from TOP edge to region's top edge
+- width_percent: region width as percentage of image width
+- height_percent: region height as percentage of image height
+- Include the ENTIRE room/feature, not just the label
+
+MULTIPLE MATCHES:
+- If multiple regions match (e.g., "bedroom" matches Bedroom 1, 2, 3), include ALL
+- Add descriptive labels to distinguish them
+- User will select which one(s) to zoom to
+
+NO MATCH FOUND:
+If no matching region found, return:
+{
+  "error": "no_match",
+  "suggestions": ["list", "of", "detected", "regions"],
+  "message": "Could not find 'target'. Available regions: ..."
+}
+
+IMPORTANT:
+- Be generous with region boundaries - better to include too much than cut off content
+- A 10% margin will be added automatically, so don't add extra padding
+- For irregularly shaped rooms, use a bounding rectangle
+- Coordinates from TOP-LEFT corner (not bottom-left)'''
 
 
 def main():

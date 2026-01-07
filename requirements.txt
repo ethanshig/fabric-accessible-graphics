@@ -9,6 +9,13 @@ rich>=13.0.0
 # Phase 3: Text Detection
 pytesseract>=0.3.10
 
+# Multi-page PDF support
+# Note: pdf2image requires poppler to be installed on the system
+#   Ubuntu/Debian: sudo apt-get install poppler-utils
+#   macOS: brew install poppler
+#   Windows: Download from https://github.com/oschwartz10612/poppler-windows/releases
+pdf2image>=1.16.0
+
 # Phase 4: MCP Server
 mcp>=1.0.0
 

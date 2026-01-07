@@ -141,7 +141,13 @@ def main():
     default='overlay',
     help='Braille label placement: overlay on image or in margins. Default: overlay'
 )
-def image_to_piaf(input_path, output, threshold, paper_size, verbose, interactive, config, preset, enhance, enhance_strength, enable_tiling, tile_overlap, no_registration_marks, auto_reduce_density, target_density, max_reduction_iterations, detect_text, braille_grade, braille_placement):
+@click.option(
+    '--zoom-region',
+    type=str,
+    default=None,
+    help='Zoom to a region: "x%%,y%%,w%%,h%%" (e.g., "25,30,50,40" = start at 25%%,30%% with 50%%x40%% size). Includes 10%% margin.'
+)
+def image_to_piaf(input_path, output, threshold, paper_size, verbose, interactive, config, preset, enhance, enhance_strength, enable_tiling, tile_overlap, no_registration_marks, auto_reduce_density, target_density, max_reduction_iterations, detect_text, braille_grade, braille_placement, zoom_region):
     """
     Convert an image to PIAF-ready PDF format.
 
@@ -304,6 +310,8 @@ def image_to_piaf(input_path, output, threshold, paper_size, verbose, interactiv
                     logger.info(f"  Target density: {int(target_density * 100)}%")
                 if max_reduction_iterations is not None:
                     logger.info(f"  Max iterations: {max_reduction_iterations}")
+            if zoom_region:
+                logger.info(f"  Zoom region: {zoom_region}")
             logger.blank_line()
 
             if not click.confirm("Continue with these settings?", default=True):
@@ -324,9 +332,47 @@ def image_to_piaf(input_path, output, threshold, paper_size, verbose, interactiv
             logger=logger
         )
 
+        # Parse and apply zoom region if specified
+        zoom_region_tuple = None
+        zoomed_input_path = input_path
+        if zoom_region:
+            try:
+                parts = [float(p.strip()) for p in zoom_region.split(',')]
+                if len(parts) != 4:
+                    raise ValueError("Expected 4 values")
+                zoom_region_tuple = tuple(parts)
+
+                # Validate percentages
+                if not all(0 <= p <= 100 for p in zoom_region_tuple):
+                    logger.error("Zoom region values must be between 0 and 100")
+                    sys.exit(1)
+
+                # Load and crop the image
+                from PIL import Image as PILImage
+                import tempfile
+
+                with PILImage.open(input_path) as img:
+                    cropped = processor.crop_to_region(img, zoom_region_tuple, margin_percent=10.0)
+                    cropped = processor.adjust_to_aspect_ratio(cropped, paper_size)
+                    # Scale up to fill the page
+                    cropped = processor.scale_to_fill_page(cropped, paper_size, dpi=300)
+
+                    # Save to temp file
+                    zoom_temp = tempfile.NamedTemporaryFile(suffix='.png', delete=False, prefix='zoom_')
+                    cropped.save(zoom_temp.name, format='PNG')
+                    zoomed_input_path = zoom_temp.name
+
+                if verbose:
+                    logger.info(f"Zoomed to region: {zoom_region}")
+
+            except ValueError as e:
+                logger.error(f"Invalid zoom-region format: {e}")
+                logger.solution("Use format: x%,y%,width%,height% (e.g., 25,30,50,40)")
+                sys.exit(1)
+
         try:
             processed_image, metadata = processor.process(
-                input_path=input_path,
+                input_path=zoomed_input_path,
                 threshold=threshold,
                 check_density_flag=True,
                 enhance=enhance,

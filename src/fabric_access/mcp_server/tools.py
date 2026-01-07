@@ -8,16 +8,18 @@ interaction for converting architectural images to tactile graphics.
 import json
 import logging
 from pathlib import Path
-from typing import Optional, Union, List, Dict, Any
+from typing import Optional, Union, List, Dict, Any, Tuple
 
 from fabric_access.core.processor import ImageProcessor, ImageProcessorError
 from fabric_access.core.pdf_generator import PIAFPDFGenerator, PDFGeneratorError
 from fabric_access.config.standards_loader import StandardsLoader, StandardsLoaderError
 from fabric_access.config.presets import PresetManager, PresetError
-from fabric_access.core.braille_converter import BrailleConverter, BrailleConfig
+from fabric_access.core.braille_converter import BrailleConverter, BrailleConfig, KeyEntry
 from fabric_access.core.text_detector import TextDetector, TextDetectionConfig, DetectedText
 from fabric_access.core.hybrid_text_detector import HybridTextDetector
+from fabric_access.core.grid_overlay import create_grid_overlay, grid_cell_to_percent
 from fabric_access.utils.cache import cache_tesseract_results, load_cached_tesseract
+from fabric_access.core.label_scaler import analyze_label_fit
 
 logger = logging.getLogger("fabric-access-mcp")
 
@@ -54,6 +56,287 @@ def _get_density_message(density: float) -> str:
         return f"Density {density:.1f}% - high, consider using auto_reduce_density option."
 
 
+def _get_quality_criteria(image_type: str) -> str:
+    """Get quality assessment criteria based on image type."""
+    criteria = {
+        "floor_plan": (
+            "- Wall boundaries should be clear and continuous\n"
+            "- Room labels should be readable (now in Braille)\n"
+            "- Doors and windows should be visible as distinct features\n"
+            "- Density should be 25-40% for optimal tactile feel"
+        ),
+        "site_plan": (
+            "- Building footprints should be distinct and filled appropriately\n"
+            "- Paths and roads should be visible lines\n"
+            "- Landscaping should not overwhelm the main features\n"
+            "- North arrow and scale should be preserved"
+        ),
+        "section": (
+            "- Vertical structure should be clear (floor lines, ceiling heights)\n"
+            "- Levels should be distinct and separated\n"
+            "- Materials should be differentiated where possible\n"
+            "- Ground line and cut areas should be identifiable"
+        ),
+        "elevation": (
+            "- Building profile should be clear and continuous\n"
+            "- Openings (windows, doors) should be visible\n"
+            "- Roof line should be distinct\n"
+            "- Ground line should be identifiable"
+        ),
+        "sketch": (
+            "- Main lines should be preserved\n"
+            "- Light/faint lines may be lost (acceptable)\n"
+            "- Overall composition should be recognizable\n"
+            "- Density can be lower (15-30%) for sketches"
+        )
+    }
+    return criteria.get(image_type, criteria["floor_plan"])
+
+
+
+
+async def _process_multipage_pdf(
+    pdf_pages: list,
+    image_file,
+    output_path: str,
+    preset: str,
+    effective_threshold: int,
+    enhance: str,
+    enhance_strength: float,
+    effective_paper_size: str,
+    detect_text: bool,
+    braille_grade: int,
+    auto_reduce_density: bool,
+    claude_text_json,
+    standards,
+    silent_logger
+) -> str:
+    """
+    Process a multi-page PDF and combine all pages into a single tactile output.
+    
+    This handles the special case where the input is a PDF with multiple pages.
+    Each page is processed independently, and the results are combined into
+    a single output PDF with a shared symbol key.
+    
+    Args:
+        pdf_pages: List of PIL Images from pdf2image conversion
+        image_file: Path object for the input file
+        output_path: Optional output path
+        preset: Preset name
+        effective_threshold: Threshold value to use
+        enhance: Enhancement mode
+        enhance_strength: Enhancement strength
+        effective_paper_size: Paper size
+        detect_text: Whether to detect text
+        braille_grade: Braille grade (1 or 2)
+        auto_reduce_density: Whether to auto-reduce density
+        claude_text_json: Claude's text extraction (optional)
+        standards: StandardsLoader instance
+        silent_logger: SilentLogger instance
+    
+    Returns:
+        JSON string with conversion results
+    """
+    from PIL import Image
+    
+    # Generate output path if not specified
+    if not output_path:
+        output_path = str(image_file.parent / f"{image_file.stem}_piaf.pdf")
+    
+    # Initialize processor
+    processor = ImageProcessor(
+        config=standards.get_all_config(),
+        logger=silent_logger
+    )
+    
+    # Collect results for all pages
+    pages_data = []  # List of (processed_image, braille_labels) tuples
+    all_symbol_key_entries = []  # Shared symbol key across all pages
+    all_detected_texts = []
+    total_braille_labels = 0
+    densities = []
+    
+    # Process each page
+    for page_idx, page_image in enumerate(pdf_pages, 1):
+        logger.info(f"Processing page {page_idx} of {len(pdf_pages)}")
+        
+        # Get page dimensions
+        img_width, img_height = page_image.size
+        
+        # Detect text on this page if requested
+        page_detected_texts = []
+        if detect_text:
+            try:
+                text_config = TextDetectionConfig(
+                    enabled=True,
+                    language='eng',
+                    page_segmentation_mode=3,
+                    min_confidence=50,
+                    filter_dimensions=True
+                )
+                text_detector = TextDetector(config=text_config, logger=silent_logger)
+                gray_image = page_image.convert('L')
+                page_detected_texts = text_detector.detect_text(gray_image, page_number=page_idx)
+                
+                # Add page number to each detected text
+                for dt in page_detected_texts:
+                    dt.page_number = page_idx
+                    all_detected_texts.append(dt)
+                    
+            except Exception as e:
+                logger.warning(f"Text detection failed for page {page_idx}: {e}")
+        
+        # Process the page image
+        try:
+            # Save page temporarily for processing
+            import tempfile
+            with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
+                page_image.save(tmp.name, format='PNG')
+                tmp_path = tmp.name
+            
+            processed_image, metadata = processor.process(
+                input_path=tmp_path,
+                threshold=effective_threshold,
+                check_density_flag=True,
+                enhance=enhance,
+                enhance_strength=enhance_strength,
+                paper_size=effective_paper_size,
+                auto_reduce_density=auto_reduce_density,
+                detect_text=False  # We already did text detection
+            )
+            
+            # Clean up temp file
+            import os as os_module
+            os_module.unlink(tmp_path)
+            
+            densities.append(metadata.get('density_percentage', 0))
+            
+        except ImageProcessorError as e:
+            return json.dumps({
+                "success": False,
+                "error": f"Image processing failed for page {page_idx}: {e}",
+                "error_type": "processing_error"
+            })
+        
+        # Convert detected text to Braille labels for this page
+        braille_labels = None
+        symbol_key_entries = None
+        
+        if detect_text and page_detected_texts:
+            try:
+                braille_config_dict = standards.get_all_config().get('braille', {})
+                braille_config = BrailleConfig(
+                    enabled=True,
+                    grade=int(braille_grade),
+                    placement="overlay",
+                    font_name=braille_config_dict.get('font_name', 'DejaVu Sans'),
+                    font_size=braille_config_dict.get('font_size', 10),
+                    offset_x=braille_config_dict.get('offset_x', 5),
+                    offset_y=braille_config_dict.get('offset_y', -10),
+                    max_label_length=braille_config_dict.get('max_label_length', 30),
+                    truncate_suffix=braille_config_dict.get('truncate_suffix', '...'),
+                    font_color=braille_config_dict.get('font_color', 'black'),
+                    detect_overlaps=braille_config_dict.get('detect_overlaps', True),
+                    min_label_spacing=braille_config_dict.get('min_label_spacing', 6)
+                )
+                
+                braille_converter = BrailleConverter(braille_config, silent_logger)
+                braille_labels, symbol_key_entries = braille_converter.create_braille_labels(
+                    page_detected_texts
+                )
+                
+                if braille_labels:
+                    total_braille_labels += len(braille_labels)
+                
+                # Add symbol key entries to shared key (with page reference)
+                if symbol_key_entries:
+                    for entry in symbol_key_entries:
+                        # Prefix symbol with page number to avoid conflicts
+                        entry.original_text = f"[Page {page_idx}] {entry.original_text}"
+                        all_symbol_key_entries.append(entry)
+                
+                # White out original text regions
+                whiteout_enabled = braille_config_dict.get('whiteout_original_text', True)
+                whiteout_padding = braille_config_dict.get('whiteout_padding', 5)
+                
+                if whiteout_enabled and page_detected_texts:
+                    processed_image = processor.whiteout_text_regions(
+                        processed_image,
+                        page_detected_texts,
+                        padding=whiteout_padding
+                    )
+                    
+            except Exception as e:
+                logger.warning(f"Braille conversion failed for page {page_idx}: {e}")
+        
+        # Add to pages data
+        pages_data.append((processed_image, braille_labels or []))
+    
+    # Generate multi-page PDF
+    pdf_generator = PIAFPDFGenerator(
+        logger=silent_logger,
+        config=standards.get_all_config()
+    )
+    
+    try:
+        # Create braille converter for symbol key page
+        braille_converter_for_key = None
+        if all_symbol_key_entries:
+            try:
+                braille_config_dict = standards.get_all_config().get('braille', {})
+                braille_config = BrailleConfig(
+                    enabled=True,
+                    grade=int(braille_grade),
+                    font_name=braille_config_dict.get('font_name', 'DejaVu Sans'),
+                    font_size=braille_config_dict.get('font_size', 10)
+                )
+                braille_converter_for_key = BrailleConverter(braille_config, silent_logger)
+            except:
+                pass
+        
+        final_output = pdf_generator.generate_multipage(
+            pages_data=pages_data,
+            output_path=output_path,
+            paper_size=effective_paper_size,
+            shared_symbol_key=all_symbol_key_entries if all_symbol_key_entries else None,
+            braille_converter=braille_converter_for_key
+        )
+    except PDFGeneratorError as e:
+        return json.dumps({
+            "success": False,
+            "error": f"PDF generation failed: {e}",
+            "error_type": "pdf_error"
+        })
+    
+    # Calculate average density
+    avg_density = sum(densities) / len(densities) if densities else 0
+    density_message = _get_density_message(avg_density)
+    
+    # Build success message
+    message_parts = [f"Converted {len(pdf_pages)} pages successfully."]
+    if total_braille_labels > 0:
+        message_parts.append(f"{total_braille_labels} Braille label(s) added across all pages.")
+    message_parts.append(density_message)
+    if all_symbol_key_entries:
+        message_parts.append(f"Shared symbol key with {len(all_symbol_key_entries)} entries on final page.")
+    message_parts.append("Ready for PIAF printing.")
+    
+    return json.dumps({
+        "success": True,
+        "output_file": str(final_output),
+        "page_count": len(pdf_pages),
+        "density_percentage": round(avg_density, 1),
+        "braille_labels_count": total_braille_labels,
+        "paper_size": effective_paper_size,
+        "threshold_used": effective_threshold,
+        "preset_used": preset,
+        "detected_text_count": len(all_detected_texts),
+        "symbol_key_entries": len(all_symbol_key_entries),
+        "is_multipage": True,
+        "message": " ".join(message_parts)
+    })
+
+
 async def convert_to_tactile(
     image_path: str,
     output_path: Optional[str] = None,
@@ -64,7 +347,17 @@ async def convert_to_tactile(
     braille_grade: int = 2,
     auto_reduce_density: bool = False,
     tile_overlap: float = 0.0,
-    claude_text_json: Optional[Union[str, List[Dict[str, Any]]]] = None
+    claude_text_json: Optional[Union[str, List[Dict[str, Any]]]] = None,
+    use_grid_overlay: bool = False,
+    assess_quality: bool = False,
+    scale_percent: Optional[float] = None,
+    auto_scale: bool = True,
+    max_scale_factor: Optional[float] = None,
+    use_abbreviation_key: bool = True,
+    force_abbreviation_key: bool = False,
+    zoom_region: Optional[Tuple[float, float, float, float]] = None,
+    zoom_to: Optional[str] = None,
+    zoom_regions: Optional[List[Dict[str, Any]]] = None
 ) -> str:
     """
     Convert an architectural image to a PIAF-ready tactile PDF.
@@ -89,6 +382,29 @@ async def convert_to_tactile(
         auto_reduce_density: Automatically reduce density if too high for PIAF
         tile_overlap: Overlap between tiles for large images (0.0-1.0, default 0.0 for no overlap)
         claude_text_json: Claude's text extraction as JSON string or list of dicts (Phase 2 of hybrid OCR)
+        use_grid_overlay: Enable grid overlay for more precise text positioning using cell references (e.g., "C4")
+        assess_quality: Enable quality assessment - returns instructions for visual comparison (default: False)
+        scale_percent: Manual zoom/scale percentage. None=auto (uses auto_scale), 150=1.5x, 200=2x.
+                      Overrides auto_scale when specified.
+        auto_scale: Automatically scale the image so Braille labels fit in original text bounding boxes.
+                   Default: True. Scales as much as needed unless max_scale_factor is set.
+        max_scale_factor: Optional cap on auto-scale factor (e.g., 2.0 = 200%). Default: None (no cap).
+                         When set, labels that don't fit after capped scaling get abbreviated to key.
+                         Warning issued when scaling exceeds 300%.
+        use_abbreviation_key: Auto-abbreviate labels that don't fit in their bounding box to single
+                             letters (A, B, C...) and generate a key page mapping letters to full text.
+                             Default: True.
+        force_abbreviation_key: Abbreviate ALL labels regardless of whether they fit, creating a
+                               comprehensive key page. Useful for dense drawings. Default: False.
+        zoom_region: Zoom to a specific region. Format: (x_percent, y_percent, width_percent, height_percent)
+                    where each value is 0-100. Example: (25, 30, 50, 40) starts at 25% from left,
+                    30% from top, cropping 50% of width and 40% of height. Includes 10% margin.
+        zoom_to: Natural language description of region to zoom to (e.g., "Bedroom", "Kitchen",
+                "staircase", "upper-left area"). Returns instructions for Claude to identify the region
+                using vision, then call again with zoom_region or zoom_regions.
+        zoom_regions: Multiple regions for multi-page output. List of dicts with keys:
+                     label, x_percent, y_percent, width_percent, height_percent.
+                     Each region becomes a page in the output PDF.
 
     Returns:
         JSON string with conversion results including output file path and metadata
@@ -138,6 +454,12 @@ async def convert_to_tactile(
         if effective_threshold is None:
             effective_threshold = standards.get_default_threshold()
 
+        # Initialize processor early (needed for zoom operations)
+        processor = ImageProcessor(
+            config=standards.get_all_config(),
+            logger=silent_logger
+        )
+
         # Validate image path
         image_file = Path(image_path)
         if not image_file.exists():
@@ -147,10 +469,159 @@ async def convert_to_tactile(
                 "error_type": "file_not_found"
             })
 
-        # Get image dimensions for hybrid OCR
+        # ============================================================
+        # MULTI-PAGE PDF DETECTION AND HANDLING
+        # ============================================================
         from PIL import Image
-        with Image.open(image_file) as img:
+        
+        # Check if this is a multi-page PDF
+        is_multipage_pdf = False
+        pdf_pages = []
+        
+        if image_file.suffix.lower() == '.pdf':
+            try:
+                from pdf2image import convert_from_path
+                # Convert PDF pages to images at 300 DPI for quality
+                pdf_pages = convert_from_path(str(image_file), dpi=300)
+                if len(pdf_pages) > 1:
+                    is_multipage_pdf = True
+                    logger.info(f"Multi-page PDF detected: {len(pdf_pages)} pages")
+            except ImportError:
+                # pdf2image not installed, fall back to single-page handling
+                logger.warning("pdf2image not installed. Multi-page PDF support unavailable.")
+                logger.warning("Install with: pip install pdf2image")
+            except Exception as e:
+                logger.warning(f"Failed to read PDF pages: {e}")
+        
+        # If multi-page PDF, process all pages together
+        if is_multipage_pdf and len(pdf_pages) > 1:
+            return await _process_multipage_pdf(
+                pdf_pages=pdf_pages,
+                image_file=image_file,
+                output_path=output_path,
+                preset=preset,
+                effective_threshold=effective_threshold,
+                enhance=enhance,
+                enhance_strength=enhance_strength,
+                effective_paper_size=effective_paper_size,
+                detect_text=detect_text,
+                braille_grade=braille_grade,
+                auto_reduce_density=auto_reduce_density,
+                claude_text_json=claude_text_json,
+                standards=standards,
+                silent_logger=silent_logger
+            )
+
+        # Get image dimensions for hybrid OCR (single image or single-page PDF)
+        if pdf_pages:
+            # Single-page PDF - use first page
+            img = pdf_pages[0]
             img_width, img_height = img.size
+        else:
+            with Image.open(image_file) as img:
+                img_width, img_height = img.size
+
+        # Track original dimensions for scaling
+        original_img_width, original_img_height = img_width, img_height
+
+        # Track if we applied scaling (for later coordinate adjustment)
+        effective_scale_percent = None
+        scaled_image_path = None  # Temp path if we scale the image
+
+        # Track zoom information
+        zoom_applied = None
+        zoom_label = None
+
+        # ============================================================
+        # ZOOM PHASE 0: LLM-Assisted Zoom Region Identification
+        # ============================================================
+        if zoom_to and not zoom_region and not zoom_regions:
+            # Return instructions for Claude to identify the region using vision
+            return json.dumps({
+                "success": True,
+                "phase": "zoom_region_identification",
+                "image_path": str(image_file.absolute()),
+                "image_size": {"width": img_width, "height": img_height},
+                "zoom_target": zoom_to,
+                "instructions": (
+                    f"ZOOM REGION IDENTIFICATION for: '{zoom_to}'\n\n"
+                    f"Please view the image at: {image_file.absolute()}\n"
+                    f"Image dimensions: {img_width}x{img_height} pixels\n\n"
+                    "Identify the region(s) matching the target. Return a JSON array:\n"
+                    "[\n"
+                    "  {\n"
+                    '    "label": "Bedroom 1",\n'
+                    '    "x_percent": 25,\n'
+                    '    "y_percent": 30,\n'
+                    '    "width_percent": 30,\n'
+                    '    "height_percent": 25,\n'
+                    '    "confidence": "high"\n'
+                    "  }\n"
+                    "]\n\n"
+                    "SEARCH STRATEGIES:\n"
+                    "1. Look for text labels (e.g., 'BEDROOM', 'Kitchen')\n"
+                    "2. Identify room shapes and boundaries\n"
+                    "3. For features (staircase, door), identify the element\n"
+                    "4. For spatial (upper-left), calculate quadrant coordinates\n\n"
+                    "After identification, call convert_to_tactile again with:\n"
+                    "- Same image_path\n"
+                    "- For single region: zoom_region=(x_percent, y_percent, width_percent, height_percent)\n"
+                    "- For multiple matches: zoom_regions=[{label, x_percent, y_percent, ...}, ...]"
+                ),
+                "message": f"Please view the image and identify region(s) matching '{zoom_to}'."
+            })
+
+        # ============================================================
+        # ZOOM PHASE 1: Apply Zoom Region (Single or Multi)
+        # ============================================================
+        if zoom_regions and len(zoom_regions) > 1:
+            # Multi-region zoom: generate multi-page PDF
+            # This is handled later after all processing setup
+            pass  # Will be handled in PDF generation section
+
+        elif zoom_region or (zoom_regions and len(zoom_regions) == 1):
+            # Single region zoom
+            if zoom_regions:
+                region_info = zoom_regions[0]
+                zoom_label = region_info.get('label')
+                zoom_region = (
+                    region_info['x_percent'],
+                    region_info['y_percent'],
+                    region_info['width_percent'],
+                    region_info['height_percent']
+                )
+
+            # Load the base image for cropping
+            if pdf_pages:
+                base_image = pdf_pages[0].copy()
+            else:
+                base_image = Image.open(image_file)
+
+            # Crop to region with 10% margin
+            cropped_image = processor.crop_to_region(base_image, zoom_region, margin_percent=10.0)
+
+            # Adjust to paper aspect ratio
+            cropped_image = processor.adjust_to_aspect_ratio(cropped_image, effective_paper_size)
+
+            # Scale up to fill the page
+            cropped_image = processor.scale_to_fill_page(cropped_image, effective_paper_size, dpi=300)
+
+            # Save cropped image to temp file for further processing
+            import tempfile
+            zoom_temp = tempfile.NamedTemporaryFile(suffix='.png', delete=False, prefix='zoom_')
+            cropped_image.save(zoom_temp.name, format='PNG')
+
+            # Update tracking variables
+            img_width, img_height = cropped_image.size
+            image_path_for_processing = zoom_temp.name
+            zoom_applied = {
+                "region": zoom_region,
+                "label": zoom_label,
+                "original_size": {"width": original_img_width, "height": original_img_height},
+                "cropped_size": {"width": img_width, "height": img_height}
+            }
+
+            logger.info(f"Zoomed to region {zoom_region}, cropped to {img_width}x{img_height}")
 
         # ============================================================
         # PHASE 1: Hybrid OCR - Run Tesseract, return instructions for Claude
@@ -170,21 +641,61 @@ async def convert_to_tactile(
                 gray_image = Image.open(image_file).convert('L')
                 tesseract_results = text_detector.detect_text(gray_image)
 
-                # Cache Tesseract results for Phase 2
+                # Create grid overlay if enabled (before caching so we can include grid_info)
+                grid_info = None
+                grid_image_path = None
+                if use_grid_overlay:
+                    import tempfile
+                    with Image.open(image_file) as original_img:
+                        grid_image, grid_rows, grid_cols = create_grid_overlay(original_img)
+                        # Save grid image to temp file
+                        grid_temp = tempfile.NamedTemporaryFile(
+                            suffix='.png', delete=False, prefix='grid_overlay_'
+                        )
+                        grid_image.save(grid_temp.name, format='PNG')
+                        grid_image_path = grid_temp.name
+                        grid_info = {"rows": grid_rows, "cols": grid_cols, "path": grid_image_path}
+                        logger.info(f"Created grid overlay: {grid_rows}x{grid_cols} at {grid_image_path}")
+
+                # Cache Tesseract results for Phase 2 (include grid_info if available)
                 cache_tesseract_results(
                     str(image_file.absolute()),
                     tesseract_results,
-                    image_size=(img_width, img_height)
+                    image_size=(img_width, img_height),
+                    grid_info=grid_info
                 )
 
-                # Return instructions for Claude to view image and extract text
-                return json.dumps({
-                    "success": True,
-                    "phase": "text_extraction_needed",
-                    "tesseract_count": len(tesseract_results),
-                    "image_path": str(image_file.absolute()),
-                    "image_size": {"width": img_width, "height": img_height},
-                    "instructions": (
+                # Build instructions based on grid mode (grid_info already created above if enabled)
+                if use_grid_overlay and grid_info:
+                    instructions = (
+                        f"HYBRID OCR PHASE 1 COMPLETE: Tesseract found {len(tesseract_results)} text regions.\n\n"
+                        "GRID MODE ENABLED - Use cell references for precise positioning!\n\n"
+                        "NOW PLEASE:\n"
+                        f"1. VIEW the GRID IMAGE at: {grid_image_path}\n"
+                        f"   (Original image: {image_file.absolute()})\n"
+                        f"2. Grid dimensions: {grid_info['rows']} rows x {grid_info['cols']} columns\n\n"
+                        "3. Extract ALL visible text and return a JSON array with this format:\n"
+                        "[\n"
+                        "  {\n"
+                        '    "text": "exact text content",\n'
+                        '    "grid_cell": "C4",  // cell where text is located (e.g., A1, B3, C4)\n'
+                        '    "rotation_degrees": 0,  // 0=horizontal, 90=rotated clockwise, -90=counter-clockwise\n'
+                        '    "type": "printed|handwritten|dimension",\n'
+                        '    "confidence": "high|medium|low"\n'
+                        "  }\n"
+                        "]\n\n"
+                        "4. After extracting text, call convert_to_tactile AGAIN with:\n"
+                        "   - Same image_path\n"
+                        "   - claude_text_json parameter containing your JSON array\n"
+                        "   - use_grid_overlay=True\n\n"
+                        "TIPS:\n"
+                        "- Look at the RED grid lines and cell labels (A1, A2, B1, etc.)\n"
+                        "- Identify which cell each text element falls into\n"
+                        "- Cell references are like Excel: row letter + column number\n"
+                        "- For rotated text: 90=vertical reading bottom-to-top, -90=vertical reading top-to-bottom"
+                    )
+                else:
+                    instructions = (
                         f"HYBRID OCR PHASE 1 COMPLETE: Tesseract found {len(tesseract_results)} text regions.\n\n"
                         "NOW PLEASE:\n"
                         f"1. VIEW the image at: {image_file.absolute()}\n"
@@ -197,6 +708,7 @@ async def convert_to_tactile(
                         '    "y_percent": 10,  // vertical position as % (0-100) from top\n'
                         '    "width_percent": 8,  // approximate width as % of image width\n'
                         '    "height_percent": 3,  // approximate height as % of image height\n'
+                        '    "rotation_degrees": 0,  // 0=horizontal, 90=rotated clockwise, -90=counter-clockwise\n'
                         '    "type": "printed|handwritten|dimension",\n'
                         '    "confidence": "high|medium|low"\n'
                         "  }\n"
@@ -208,10 +720,27 @@ async def convert_to_tactile(
                         "- Include room labels, dimensions, title block text, annotations\n"
                         "- For position, estimate: 'Kitchen' at center-left might be x_percent=30, y_percent=40\n"
                         "- Dimensions like '5,55 m' should have type='dimension'\n"
+                        "- For rotated text: 90=vertical reading bottom-to-top, -90=vertical reading top-to-bottom\n"
                         "- Your accurate text will be merged with Tesseract's accurate positions"
-                    ),
+                    )
+
+                # Build response
+                response = {
+                    "success": True,
+                    "phase": "text_extraction_needed",
+                    "tesseract_count": len(tesseract_results),
+                    "image_path": str(image_file.absolute()),
+                    "image_size": {"width": img_width, "height": img_height},
+                    "instructions": instructions,
                     "message": "Phase 1 complete. Please view the image, extract text, then call again with claude_text_json."
-                })
+                }
+
+                # Add grid info if enabled
+                if grid_info:
+                    response["grid_overlay"] = grid_info
+                    response["message"] = "Phase 1 complete. View the GRID IMAGE and use cell references for text positions."
+
+                return json.dumps(response)
 
             except Exception as e:
                 logger.warning(f"Tesseract failed, falling back to Claude-only: {e}")
@@ -229,8 +758,54 @@ async def convert_to_tactile(
                 else:
                     claude_results = claude_text_json  # Already a list
 
-                # Load cached Tesseract results
+                # Load cached data for grid info
                 cached = load_cached_tesseract(str(image_file.absolute()))
+
+                # Check if grid cell references are used and convert to percentages
+                if use_grid_overlay and cached and cached.get('grid_info'):
+                    grid_info = cached['grid_info']
+                    grid_rows = grid_info['rows']
+                    grid_cols = grid_info['cols']
+
+                    # Convert grid_cell references to x_percent/y_percent
+                    for result in claude_results:
+                        if 'grid_cell' in result and result['grid_cell']:
+                            try:
+                                x_percent, y_percent = grid_cell_to_percent(
+                                    result['grid_cell'], grid_rows, grid_cols
+                                )
+                                result['x_percent'] = x_percent
+                                result['y_percent'] = y_percent
+                                # Default width/height if not provided
+                                if 'width_percent' not in result:
+                                    result['width_percent'] = 100.0 / grid_cols * 0.8
+                                if 'height_percent' not in result:
+                                    result['height_percent'] = 100.0 / grid_rows * 0.5
+                                logger.info(f"Converted grid cell {result['grid_cell']} to ({x_percent:.1f}%, {y_percent:.1f}%)")
+                            except ValueError as e:
+                                logger.warning(f"Invalid grid cell reference '{result.get('grid_cell')}': {e}")
+                elif use_grid_overlay:
+                    # Grid mode requested but no cached grid info - try to compute
+                    # This can happen if Phase 1 wasn't called or cache expired
+                    from fabric_access.core.grid_overlay import calculate_grid_density
+                    grid_rows, grid_cols = calculate_grid_density(img_width, img_height)
+
+                    for result in claude_results:
+                        if 'grid_cell' in result and result['grid_cell']:
+                            try:
+                                x_percent, y_percent = grid_cell_to_percent(
+                                    result['grid_cell'], grid_rows, grid_cols
+                                )
+                                result['x_percent'] = x_percent
+                                result['y_percent'] = y_percent
+                                if 'width_percent' not in result:
+                                    result['width_percent'] = 100.0 / grid_cols * 0.8
+                                if 'height_percent' not in result:
+                                    result['height_percent'] = 100.0 / grid_rows * 0.5
+                            except ValueError as e:
+                                logger.warning(f"Invalid grid cell reference '{result.get('grid_cell')}': {e}")
+
+                # Load cached Tesseract results
 
                 if cached and cached.get('results'):
                     # Reconstruct DetectedText objects from cache
@@ -242,7 +817,9 @@ async def convert_to_tactile(
                             width=r['width'],
                             height=r['height'],
                             confidence=r['confidence'],
-                            is_dimension=r.get('is_dimension', False)
+                            is_dimension=r.get('is_dimension', False),
+                            rotation_degrees=r.get('rotation_degrees', 0.0),
+                            page_number=r.get('page_number', 1)
                         )
                         for r in cached['results']
                     ]
@@ -271,13 +848,100 @@ async def convert_to_tactile(
 
         # Generate output path if not specified
         if not output_path:
-            output_path = str(image_file.parent / f"{image_file.stem}_piaf.pdf")
+            # Include zoom target in filename if zooming
+            if zoom_applied and zoom_applied.get('label'):
+                import re
+                safe_label = re.sub(r'[^\w\s-]', '', zoom_applied['label']).strip().replace(' ', '_').lower()
+                output_path = str(image_file.parent / f"{image_file.stem}_{safe_label}_piaf.pdf")
+            elif zoom_to:
+                import re
+                safe_target = re.sub(r'[^\w\s-]', '', zoom_to).strip().replace(' ', '_').lower()
+                output_path = str(image_file.parent / f"{image_file.stem}_{safe_target}_piaf.pdf")
+            else:
+                output_path = str(image_file.parent / f"{image_file.stem}_piaf.pdf")
 
-        # Process image
-        processor = ImageProcessor(
-            config=standards.get_all_config(),
-            logger=silent_logger
-        )
+        # ============================================================
+        # AUTO-SCALING: Analyze label fit and scale image if needed
+        # ============================================================
+        # Use zoomed image path if zoom was applied, otherwise original
+        if not zoom_applied:
+            image_path_for_processing = str(image_path)
+
+        # Handle manual scale_percent even without text detection
+        if scale_percent is not None and not merged_detected_texts:
+            effective_scale_percent = scale_percent
+            # Apply manual scaling
+            if effective_scale_percent != 100:
+                import tempfile
+
+                if pdf_pages:
+                    base_image = pdf_pages[0]
+                else:
+                    base_image = Image.open(image_file)
+
+                scaled_image = processor.scale_image(base_image, effective_scale_percent)
+                img_width, img_height = scaled_image.size
+
+                scaled_temp = tempfile.NamedTemporaryFile(suffix='.png', delete=False, prefix='scaled_')
+                scaled_image.save(scaled_temp.name, format='PNG')
+                scaled_image_path = scaled_temp.name
+                image_path_for_processing = scaled_image_path
+
+                logger.info(f"Manual scaling applied: {effective_scale_percent:.0f}%")
+
+        if merged_detected_texts and (auto_scale or scale_percent is not None):
+            # Analyze how much scaling is needed for labels to fit
+            fit_analysis = analyze_label_fit(
+                merged_detected_texts,
+                (img_width, img_height),
+                braille_grade=braille_grade
+            )
+
+            recommended_scale = fit_analysis.get('recommended_scale', 100)
+            labels_needing_key = len(fit_analysis.get('needs_key', []))
+
+            logger.info(f"Label fit analysis: {len(fit_analysis.get('fits', []))} fit, {labels_needing_key} need key, recommended scale: {recommended_scale:.0f}%")
+
+            # Determine effective scale
+            if scale_percent is not None:
+                # Manual scale overrides auto
+                effective_scale_percent = scale_percent
+            elif auto_scale and recommended_scale > 100:
+                # Auto-scale, optionally capped at max_scale_factor
+                if max_scale_factor is not None:
+                    max_scale = max_scale_factor * 100
+                    effective_scale_percent = min(recommended_scale, max_scale)
+                    logger.info(f"Auto-scaling to {effective_scale_percent:.0f}% (recommended: {recommended_scale:.0f}%, max: {max_scale:.0f}%)")
+                else:
+                    # No cap - scale as much as needed
+                    effective_scale_percent = recommended_scale
+                    logger.info(f"Auto-scaling to {effective_scale_percent:.0f}% (no cap)")
+
+            # Apply scaling if needed
+            if effective_scale_percent and effective_scale_percent != 100:
+                import tempfile
+
+                # Load the original image
+                if pdf_pages:
+                    base_image = pdf_pages[0]
+                else:
+                    base_image = Image.open(image_file)
+
+                # Scale the image
+                scaled_image = processor.scale_image(base_image, effective_scale_percent)
+                img_width, img_height = scaled_image.size
+
+                # Save to temp file for processor.process()
+                scaled_temp = tempfile.NamedTemporaryFile(suffix='.png', delete=False, prefix='scaled_')
+                scaled_image.save(scaled_temp.name, format='PNG')
+                scaled_image_path = scaled_temp.name
+                image_path_for_processing = scaled_image_path
+
+                logger.info(f"Scaled image from {original_img_width}x{original_img_height} to {img_width}x{img_height}")
+
+                # Scale detected text coordinates to match
+                merged_detected_texts = processor.scale_detected_texts(merged_detected_texts, effective_scale_percent)
+                logger.info(f"Scaled {len(merged_detected_texts)} detected text coordinates")
 
         # If we have merged results from hybrid OCR, skip text detection in processor
         # (we already have the text, just need image processing)
@@ -285,7 +949,7 @@ async def convert_to_tactile(
 
         try:
             processed_image, metadata = processor.process(
-                input_path=str(image_path),
+                input_path=image_path_for_processing,
                 threshold=effective_threshold,
                 check_density_flag=True,
                 enhance=enhance,
@@ -307,6 +971,7 @@ async def convert_to_tactile(
         # Convert detected text to Braille labels
         braille_labels = None
         symbol_key_entries = None
+        key_entries = []  # Abbreviation key entries
         braille_converter = None
         braille_labels_count = 0
 
@@ -330,9 +995,31 @@ async def convert_to_tactile(
                 )
 
                 braille_converter = BrailleConverter(braille_config, silent_logger)
-                braille_labels, symbol_key_entries = braille_converter.create_braille_labels(
-                    detected_texts_to_use  # Use merged or Tesseract results
-                )
+
+                # ============================================================
+                # ABBREVIATION KEY: Generate key for labels that don't fit
+                # ============================================================
+                if use_abbreviation_key or force_abbreviation_key:
+                    # Build detected_text_widths dict for fit analysis
+                    detected_text_widths = {text.text: text.width for text in detected_texts_to_use}
+
+                    # Call create_braille_labels with generate_key=True
+                    braille_labels, key_entries = braille_converter.create_braille_labels(
+                        detected_texts_to_use,
+                        generate_key=True,
+                        detected_text_widths=detected_text_widths if not force_abbreviation_key else None
+                    )
+
+                    if force_abbreviation_key:
+                        # When forcing, all labels get abbreviated
+                        logger.info(f"Force abbreviation: {len(key_entries)} key entries generated for all labels")
+                    elif key_entries:
+                        logger.info(f"Abbreviation key: {len(key_entries)} labels abbreviated (didn't fit in bounding box)")
+                else:
+                    # Standard Braille label creation without abbreviation key
+                    braille_labels, symbol_key_entries = braille_converter.create_braille_labels(
+                        detected_texts_to_use
+                    )
 
                 if braille_labels:
                     braille_labels_count = len(braille_labels)
@@ -360,6 +1047,120 @@ async def convert_to_tactile(
 
         needs_tiling = metadata.get('needs_tiling', False)
 
+        # ============================================================
+        # MULTI-REGION ZOOM: Generate multi-page PDF with each region
+        # ============================================================
+        if zoom_regions and len(zoom_regions) > 1:
+            import re
+            import tempfile
+
+            pages_data = []
+            all_key_entries = []
+
+            # Load the original base image once
+            if pdf_pages:
+                base_image_for_zoom = pdf_pages[0]
+            else:
+                base_image_for_zoom = Image.open(image_file)
+
+            for region_info in zoom_regions:
+                region_label = region_info.get('label', f'Region {len(pages_data)+1}')
+                region = (
+                    region_info['x_percent'],
+                    region_info['y_percent'],
+                    region_info['width_percent'],
+                    region_info['height_percent']
+                )
+
+                # Crop to this region with 10% margin
+                region_image = processor.crop_to_region(base_image_for_zoom.copy(), region, margin_percent=10.0)
+                region_image = processor.adjust_to_aspect_ratio(region_image, effective_paper_size)
+                # Scale up to fill the page
+                region_image = processor.scale_to_fill_page(region_image, effective_paper_size, dpi=300)
+
+                # Save to temp file for processing
+                region_temp = tempfile.NamedTemporaryFile(suffix='.png', delete=False, prefix='region_')
+                region_image.save(region_temp.name, format='PNG')
+
+                # Process the region
+                region_processed, region_metadata = processor.process(
+                    input_path=region_temp.name,
+                    threshold=effective_threshold,
+                    check_density_flag=True,
+                    enhance=enhance,
+                    enhance_strength=enhance_strength,
+                    paper_size=effective_paper_size,
+                    auto_reduce_density=auto_reduce_density,
+                    detect_text=detect_text
+                )
+
+                # Create Braille labels for this region
+                region_braille_labels = []
+                if detect_text and region_metadata.get('detected_texts'):
+                    try:
+                        region_labels, region_keys = braille_converter.create_braille_labels(
+                            region_metadata['detected_texts'],
+                            generate_key=use_abbreviation_key
+                        )
+                        region_braille_labels = region_labels or []
+                        if region_keys:
+                            # Add region label prefix to key entries
+                            for key in region_keys:
+                                key.original_text = f"[{region_label}] {key.original_text}"
+                            all_key_entries.extend(region_keys)
+
+                        # White out text regions
+                        if region_metadata.get('detected_texts'):
+                            region_processed = processor.whiteout_text_regions(
+                                region_processed,
+                                region_metadata['detected_texts'],
+                                padding=5
+                            )
+                    except Exception as e:
+                        logger.warning(f"Braille conversion failed for region '{region_label}': {e}")
+
+                pages_data.append((region_processed, region_braille_labels))
+                logger.info(f"Processed zoom region: {region_label}")
+
+            # Generate multi-page PDF
+            # Create output filename with zoom target
+            if zoom_to:
+                safe_target = re.sub(r'[^\w\s-]', '', zoom_to).strip().replace(' ', '_').lower()
+                multi_output_path = str(image_file.parent / f"{image_file.stem}_{safe_target}_piaf.pdf")
+            else:
+                multi_output_path = str(image_file.parent / f"{image_file.stem}_zoomed_piaf.pdf")
+
+            try:
+                final_output = pdf_generator.generate_multipage(
+                    pages_data=pages_data,
+                    output_path=multi_output_path,
+                    paper_size=effective_paper_size,
+                    shared_symbol_key=all_key_entries if all_key_entries else None,
+                    braille_converter=braille_converter
+                )
+            except PDFGeneratorError as e:
+                return json.dumps({
+                    "success": False,
+                    "error": f"Multi-region PDF generation failed: {e}",
+                    "error_type": "pdf_error"
+                })
+
+            # Build response for multi-region output
+            total_braille = sum(len(labels) for _, labels in pages_data)
+            return json.dumps({
+                "success": True,
+                "output_file": str(final_output),
+                "page_count": len(pages_data),
+                "regions": [r.get('label', f'Region {i+1}') for i, r in enumerate(zoom_regions)],
+                "braille_labels_count": total_braille,
+                "key_entries_count": len(all_key_entries),
+                "paper_size": effective_paper_size,
+                "threshold_used": effective_threshold,
+                "zoom_target": zoom_to,
+                "is_multi_region": True,
+                "message": f"Generated {len(pages_data)}-page PDF with zoomed regions. {total_braille} Braille labels added. Ready for PIAF printing."
+            })
+
         try:
             if needs_tiling:
                 # Generate tiled PDF for oversized images
@@ -370,10 +1171,13 @@ async def convert_to_tactile(
                     tile_overlap=tile_overlap,
                     add_registration_marks=True,
                     metadata=metadata,
-                    braille_labels=braille_labels
+                    braille_labels=braille_labels,
+                    key_entries=key_entries if key_entries else None,
+                    braille_converter=braille_converter
                 )
             else:
                 # Generate standard single-page PDF
+                # If we have abbreviation key entries, pass them for key page generation
                 final_output = pdf_generator.generate(
                     image=processed_image,
                     output_path=output_path,
@@ -381,7 +1185,8 @@ async def convert_to_tactile(
                     metadata=metadata,
                     braille_labels=braille_labels,
                     symbol_key_entries=symbol_key_entries,
-                    braille_converter=braille_converter
+                    braille_converter=braille_converter,
+                    key_entries=key_entries if key_entries else None
                 )
         except PDFGeneratorError as e:
             return json.dumps({
@@ -390,14 +1195,81 @@ async def convert_to_tactile(
                 "error_type": "pdf_error"
             })
 
+        # ============================================================
+        # QUALITY ASSESSMENT (if requested)
+        # ============================================================
+        if assess_quality:
+            import tempfile
+            # Save processed image to temp file for comparison
+            processed_temp = tempfile.NamedTemporaryFile(
+                suffix='.png', delete=False, prefix='processed_'
+            )
+            processed_image.save(processed_temp.name, format='PNG')
+            processed_image_path = processed_temp.name
+
+            density = metadata.get('density_percentage', 0)
+
+            # Determine image type from preset for context-aware assessment
+            image_type = preset if preset else "floor_plan"
+
+            return json.dumps({
+                "success": True,
+                "phase": "quality_assessment_needed",
+                "output_file": str(final_output),
+                "original_image": str(image_file.absolute()),
+                "processed_image": processed_image_path,
+                "current_params": {
+                    "threshold": effective_threshold,
+                    "density": round(density, 1),
+                    "enhance": enhance,
+                    "preset": preset,
+                    "paper_size": effective_paper_size,
+                    "braille_labels_count": braille_labels_count,
+                    "auto_reduce_density": auto_reduce_density
+                },
+                "image_type": image_type,
+                "instructions": (
+                    "QUALITY ASSESSMENT REQUESTED\n\n"
+                    "Please compare the original and processed images:\n"
+                    f"1. Original: {image_file.absolute()}\n"
+                    f"2. Processed: {processed_image_path}\n\n"
+                    f"Current density: {density:.1f}%\n"
+                    f"Image type: {image_type}\n\n"
+                    f"EVALUATION CRITERIA for {image_type}:\n"
+                    + _get_quality_criteria(image_type) +
+                    "\n\nIf adjustments are needed, call convert_to_tactile again with:\n"
+                    "- threshold: increase (more white) or decrease (more black)\n"
+                    "- auto_reduce_density: True if too dense\n"
+                    "- preset: try different preset for different image types\n\n"
+                    "Or call assess_tactile_quality() for a detailed quality report."
+                ),
+                "message": "PDF generated. Please review quality by comparing original and processed images."
+            })
+
         # Build success response
         density = metadata.get('density_percentage', 0)
         density_message = _get_density_message(density)
+
+        # Build warnings list
+        warnings = []
+        if effective_scale_percent is not None and effective_scale_percent > 300:
+            warnings.append(f"High scaling ({effective_scale_percent:.0f}%) may degrade image quality. Recommended range: 100-300%.")
 
         # Build human-readable message
         message_parts = ["Converted successfully."]
         if braille_labels_count > 0:
             message_parts.append(f"{braille_labels_count} Braille label(s) added.")
+        if key_entries:
+            message_parts.append(f"{len(key_entries)} label(s) abbreviated with key page.")
+        if zoom_applied:
+            if zoom_applied.get('label'):
+                message_parts.append(f"Zoomed to '{zoom_applied['label']}'.")
+            else:
+                message_parts.append("Zoomed to specified region.")
+        if effective_scale_percent is not None and effective_scale_percent != 100:
+            message_parts.append(f"Image scaled to {effective_scale_percent:.0f}%.")
+        if warnings:
+            message_parts.append(f"Warning: {warnings[0]}")
         message_parts.append(density_message)
         if needs_tiling:
             message_parts.append("Image was tiled across multiple pages.")
@@ -406,11 +1278,14 @@ async def convert_to_tactile(
         # Determine if hybrid OCR was used
         hybrid_ocr_used = merged_detected_texts is not None and len(merged_detected_texts) > 0
 
-        return json.dumps({
+        response = {
             "success": True,
             "output_file": str(final_output),
             "density_percentage": round(density, 1),
             "braille_labels_count": braille_labels_count,
+            "key_entries_count": len(key_entries) if key_entries else 0,
+            "scale_applied": effective_scale_percent if effective_scale_percent else 100,
+            "auto_scale_used": auto_scale and effective_scale_percent is not None and effective_scale_percent != 100,
             "paper_size": effective_paper_size,
             "threshold_used": effective_threshold,
             "preset_used": preset,
@@ -418,7 +1293,18 @@ async def convert_to_tactile(
             "detected_text_count": len(detected_texts_to_use),
             "hybrid_ocr_used": hybrid_ocr_used,
             "message": " ".join(message_parts)
-        })
+        }
+
+        # Add warnings if any
+        if warnings:
+            response["warnings"] = warnings
+            response["recommended_scale_range"] = "100-300%"
+
+        # Add zoom information if zoom was applied
+        if zoom_applied:
+            response["zoom_applied"] = zoom_applied
+
+        return json.dumps(response)
 
     except Exception as e:
         logger.error(f"Unexpected error in convert_to_tactile: {e}")
@@ -796,6 +1682,7 @@ async def extract_text_with_vision(
                 '    "y_percent": 25,      // vertical position as % from top edge\n'
                 '    "width_percent": 8,   // approximate width as % of image width\n'
                 '    "height_percent": 3,  // approximate height as % of image height\n'
+                '    "rotation_degrees": 0,  // 0=horizontal, 90=rotated clockwise, -90=counter-clockwise\n'
                 '    "type": "printed",    // "printed", "handwritten", or "dimension"\n'
                 '    "confidence": "high"  // "high", "medium", or "low"\n'
                 "  }\n"
@@ -804,7 +1691,8 @@ async def extract_text_with_vision(
                 "- Use percentages NOT pixels (easier to estimate visually)\n"
                 "- Center of image is approximately x_percent=50, y_percent=50\n"
                 "- Top-left corner is x_percent=0, y_percent=0\n"
-                "- For dimensions like '5,55 m' use type='dimension'\n\n"
+                "- For dimensions like '5,55 m' use type='dimension'\n"
+                "- For rotated text: 90=vertical reading bottom-to-top, -90=vertical reading top-to-bottom\n\n"
                 "5. Pass this JSON to convert_to_tactile() via claude_text_json parameter"
             ),
             "message": "Image validated. View the image and extract text with normalized coordinates (percentages)."
@@ -817,3 +1705,170 @@ async def extract_text_with_vision(
             "error": str(e),
             "error_type": "unexpected_error"
         })
+
+
+async def assess_tactile_quality(
+    original_image_path: str,
+    processed_image_path: str,
+    image_type: str = "floor_plan",
+    current_params: Optional[Dict[str, Any]] = None
+) -> str:
+    """
+    Assess tactile output quality by comparing original and processed images.
+
+    This tool helps evaluate whether a tactile conversion is suitable for PIAF
+    printing. It provides context-aware criteria based on the image type and
+    suggests parameter adjustments if needed.
+
+    Args:
+        original_image_path: Path to the original source image
+        processed_image_path: Path to the processed B&W image
+        image_type: Type of architectural image (floor_plan, site_plan, section, elevation, sketch)
+        current_params: Optional dict with current conversion parameters for context
+
+    Returns:
+        JSON string with quality assessment criteria and suggestions
+    """
+    try:
+        from PIL import Image
+
+        # Validate original image path
+        original_file = Path(original_image_path)
+        if not original_file.exists():
+            return json.dumps({
+                "success": False,
+                "error": f"Original image not found: {original_image_path}",
+                "error_type": "file_not_found"
+            })
+
+        # Validate processed image path
+        processed_file = Path(processed_image_path)
+        if not processed_file.exists():
+            return json.dumps({
+                "success": False,
+                "error": f"Processed image not found: {processed_image_path}",
+                "error_type": "file_not_found"
+            })
+
+        # Get image metadata
+        try:
+            with Image.open(original_file) as orig_img:
+                orig_width, orig_height = orig_img.size
+            with Image.open(processed_file) as proc_img:
+                proc_width, proc_height = proc_img.size
+                # Calculate density of processed image
+                if proc_img.mode == '1':
+                    # Binary image
+                    pixels = list(proc_img.getdata())
+                    black_pixels = sum(1 for p in pixels if p == 0)
+                    density = (black_pixels / len(pixels)) * 100
+                else:
+                    # Grayscale - threshold at 128
+                    pixels = list(proc_img.convert('L').getdata())
+                    black_pixels = sum(1 for p in pixels if p < 128)
+                    density = (black_pixels / len(pixels)) * 100
+        except Exception as e:
+            return json.dumps({
+                "success": False,
+                "error": f"Failed to read images: {e}",
+                "error_type": "file_error"
+            })
+
+        # Get quality criteria for this image type
+        criteria = _get_quality_criteria(image_type)
+
+        # Build detailed assessment instructions
+        assessment_prompt = (
+            f"TACTILE QUALITY ASSESSMENT for {image_type.upper()}\n\n"
+            "Please compare these two images:\n"
+            f"1. ORIGINAL: {original_file.absolute()}\n"
+            f"   Size: {orig_width}x{orig_height} pixels\n\n"
+            f"2. PROCESSED: {processed_file.absolute()}\n"
+            f"   Size: {proc_width}x{proc_height} pixels\n"
+            f"   Current density: {density:.1f}%\n\n"
+            "EVALUATION CRITERIA:\n"
+            f"{criteria}\n\n"
+            "DENSITY GUIDELINES:\n"
+            "- < 25%: May be too sparse, important details could be lost\n"
+            "- 25-35%: Optimal range for most images\n"
+            "- 35-45%: Acceptable but may cause some paper swelling\n"
+            "- > 45%: Too dense, risk of paper damage and poor tactile discrimination\n\n"
+            "Please provide:\n"
+            "1. Quality score (1-10)\n"
+            "2. List of any issues found\n"
+            "3. Specific parameter adjustments to try\n"
+            "4. Brief explanation of your assessment"
+        )
+
+        return json.dumps({
+            "success": True,
+            "original_image": str(original_file.absolute()),
+            "processed_image": str(processed_file.absolute()),
+            "image_type": image_type,
+            "current_density": round(density, 1),
+            "current_params": current_params or {},
+            "density_status": (
+                "too_low" if density < 25 else
+                "optimal" if density < 35 else
+                "acceptable" if density < 45 else
+                "too_high"
+            ),
+            "criteria": criteria,
+            "instructions": assessment_prompt,
+            "suggested_adjustments": _get_adjustment_suggestions(density, image_type),
+            "message": "View both images and provide a quality assessment based on the criteria above."
+        })
+
+    except Exception as e:
+        logger.error(f"Unexpected error in assess_tactile_quality: {e}")
+        return json.dumps({
+            "success": False,
+            "error": str(e),
+            "error_type": "unexpected_error"
+        })
+
+
+def _get_adjustment_suggestions(density: float, image_type: str) -> Dict[str, Any]:
+    """Generate parameter adjustment suggestions based on density and image type."""
+    suggestions = {"adjustments": []}
+
+    if density < 25:
+        suggestions["adjustments"].append({
+            "parameter": "threshold",
+            "action": "decrease",
+            "reason": "Increase black pixels to capture more detail"
+        })
+    elif density > 45:
+        suggestions["adjustments"].append({
+            "parameter": "auto_reduce_density",
+            "action": "set to True",
+            "reason": "Automatically reduce density for better PIAF printing"
+        })
+        suggestions["adjustments"].append({
+            "parameter": "threshold",
+            "action": "increase",
+            "reason": "Reduce black pixels to prevent paper swelling"
+        })
+
+    # Image-type specific suggestions
+    if image_type == "sketch" and density > 30:
+        suggestions["adjustments"].append({
+            "parameter": "threshold",
+            "action": "increase by 20-30",
+            "reason": "Sketches typically work better with lower density"
+        })
+    elif image_type in ["floor_plan", "site_plan"] and density < 20:
+        suggestions["adjustments"].append({
+            "parameter": "threshold",
+            "action": "decrease by 10-20",
+            "reason": "Plans need enough density to show walls and boundaries clearly"
+        })
+
+    if not suggestions["adjustments"]:
+        suggestions["adjustments"].append({
+            "parameter": "none",
+            "action": "current settings look good",
+            "reason": "Density is in acceptable range for this image type"
+        })
+
+    return suggestions

@@ -90,6 +90,24 @@ After text is detected, the Braille converter creates tactile labels:
 - Labels would be positioned in page margins
 - Useful for dense images
 
+### Auto-Scaling (NEW)
+
+Braille labels are often larger than the original text. The system can automatically scale images to ensure labels fit:
+
+- **How it works**: Analyzes each label's Braille width vs original text bounding box
+- **Scale calculation**: Uses the largest ratio to determine required scale
+- **Default maximum**: 200% (configurable via `max_scale_factor`)
+- **Tiling**: If scaled image exceeds paper size, automatically tiles across multiple pages
+
+### Abbreviation Key (NEW)
+
+Labels that don't fit even after scaling get assigned letter codes:
+
+- **Letter assignment**: A, B, C... (up to Z, then AA, AB, etc.)
+- **Key page**: Generated at beginning of PDF
+- **Format**: Shows both Braille and print: `⠁ = ⠅⠊⠞⠉⠓⠑⠝ (Kitchen)`
+- **When used**: Only for labels that exceed original bounding box after scaling
+
 ## Installation Requirements
 
 ### Installing Tesseract OCR
@@ -622,7 +640,7 @@ Overlap detected for label at (120, 340): 10'-6"
    - Only English language Braille (en-us-g1, en-us-g2)
    - Label positioning is automatic (cannot manually adjust individual labels)
    - Margin placement not yet implemented
-   - No automatic label repositioning to avoid overlaps
+   - Auto-scaling limited to 200% by default (configurable)
 
 3. **OCR Accuracy:**
    - Depends heavily on image quality
@@ -748,8 +766,8 @@ fabric-access batch ./plans ./output --detect-text --verbose
 ### Documentation
 - Main README: Overview and quick start
 - WALKTHROUGH.md: Step-by-step usage guide
-- BRAILLE_MODULE.md: Technical details on Braille module
-- BRAILLE_WORKFLOW.md: Braille workflow documentation
+- BRAILLE_MODULE.md: Technical details on Braille module (includes workflow)
+- MCP_SETUP.md: MCP server setup for Claude integration
 
 ### External Resources
 - Tesseract OCR: https://github.com/tesseract-ocr/tesseract
@@ -767,6 +785,6 @@ For issues, questions, or feedback:
 
 ---
 
-**Version:** Phase 3
-**Last Updated:** December 2024
+**Version:** Phase 3 (with Auto-Scaling & Abbreviation Key)
+**Last Updated:** January 2026
 **Maintained by:** Fabric Accessible Graphics Project

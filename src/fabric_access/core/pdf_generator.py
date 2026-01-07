@@ -6,7 +6,7 @@ Generates high-contrast PDFs optimized for tactile printing on PIAF machines.
 
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List
 from PIL import Image
 import io
 
@@ -18,7 +18,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 
 from fabric_access.utils.logger import AccessibleLogger
 from fabric_access.utils.validators import validate_output_path
-from fabric_access.core.braille_converter import BrailleConverter, BrailleConfig
+from fabric_access.core.braille_converter import BrailleConverter, BrailleConfig, KeyEntry
 
 
 class PDFGeneratorError(Exception):
@@ -187,7 +187,8 @@ class PIAFPDFGenerator:
                  metadata: Optional[dict] = None,
                  braille_labels: Optional[list] = None,
                  symbol_key_entries: Optional[list] = None,
-                 braille_converter=None) -> str:
+                 braille_converter=None,
+                 key_entries: Optional[List[KeyEntry]] = None) -> str:
         """
         Generate PDF optimized for PIAF printing.
 
@@ -199,6 +200,7 @@ class PIAFPDFGenerator:
             braille_labels: Optional list of BrailleLabel objects to render
             symbol_key_entries: Optional list of SymbolKeyEntry objects for key page
             braille_converter: Optional BrailleConverter for rendering Braille on key page
+            key_entries: Optional list of KeyEntry objects for abbreviation key page
 
         Returns:
             Path to generated PDF file
@@ -303,6 +305,11 @@ class PIAFPDFGenerator:
                 self.add_key_page(c, symbol_key_entries, page_width_pts, page_height_pts,
                                  braille_converter)
 
+            # Add abbreviation key page if there are key entries
+            if key_entries:
+                c.showPage()
+                self.add_abbreviation_key_page(c, key_entries, page_width_pts, page_height_pts)
+
             # Save PDF
             c.save()
 
@@ -387,8 +394,19 @@ class PIAFPDFGenerator:
             x = x * inch + x_offset
             y = y * inch + y_offset
 
-            # Draw Braille text
-            canvas_obj.drawString(x, y, label.braille_text)
+            # Get rotation (default to 0 if not present)
+            rotation = getattr(label, 'rotation_degrees', 0.0)
+
+            # Draw Braille text with rotation if needed
+            if rotation != 0:
+                # Use canvas transforms for rotated text
+                canvas_obj.saveState()
+                canvas_obj.translate(x, y)
+                canvas_obj.rotate(rotation)
+                canvas_obj.drawString(0, 0, label.braille_text)
+                canvas_obj.restoreState()
+            else:
+                canvas_obj.drawString(x, y, label.braille_text)
 
         self.logger.success(f"Added {len(labels)} Braille labels")
 
@@ -464,6 +482,127 @@ class PIAFPDFGenerator:
         text_width = canvas_obj.stringWidth(label, "Helvetica-Bold", 12)
         x = (page_width - text_width) / 2
         canvas_obj.drawString(x, y_base, label)
+
+    def add_abbreviation_key_page(self, canvas_obj: canvas.Canvas,
+                                   key_entries: List[KeyEntry],
+                                   page_width: float, page_height: float) -> None:
+        """
+        Add an abbreviation key page at the current position in the PDF.
+
+        Renders each key entry in dual format:
+          ⠠⠁ = ⠠⠅⠊⠞⠉⠓⠑⠝
+          A = Kitchen
+
+        This should be called BEFORE adding drawing pages so the key appears first.
+
+        Args:
+            canvas_obj: ReportLab canvas object
+            key_entries: List of KeyEntry objects to include in the key
+            page_width: Page width in points
+            page_height: Page height in points
+        """
+        if not key_entries:
+            return
+
+        # Layout constants
+        margin = 0.75 * inch
+        braille_line_height = 18  # Points for Braille line
+        print_line_height = 16   # Points for print line
+        entry_spacing = 12       # Extra spacing between entries
+        total_entry_height = braille_line_height + print_line_height + entry_spacing
+
+        # Get font settings
+        braille_config = self.config.get('braille', {})
+        braille_font = braille_config.get('font_name', 'DejaVu Sans')
+        braille_font_size = 14
+        print_font_size = 12
+        title_font_size = 18
+
+        # Start position
+        y_position = page_height - margin
+
+        # Add title in dual format: Braille and print
+        title_text = "ABBREVIATION KEY"
+
+        # Title in Braille
+        if self._internal_braille_converter and self._braille_font_available:
+            try:
+                braille_title = self._internal_braille_converter.convert_text(title_text)
+                canvas_obj.setFont(braille_font, title_font_size)
+                canvas_obj.setFillColorRGB(0, 0, 0)
+                canvas_obj.drawString(margin, y_position, braille_title)
+                y_position -= title_font_size + 4
+            except Exception as e:
+                self.logger.debug(f"Failed to render Braille title: {e}")
+
+        # Title in print
+        canvas_obj.setFont("Helvetica-Bold", title_font_size)
+        canvas_obj.setFillColorRGB(0, 0, 0)
+        canvas_obj.drawString(margin, y_position, title_text)
+        y_position -= title_font_size + 8
+
+        # Draw horizontal line under title
+        canvas_obj.setStrokeColorRGB(0, 0, 0)
+        canvas_obj.setLineWidth(1)
+        canvas_obj.line(margin, y_position, page_width - margin, y_position)
+        y_position -= 20
+
+        # Render each key entry
+        for idx, entry in enumerate(key_entries):
+            # Check if we need a new page
+            if y_position < margin + total_entry_height:
+                canvas_obj.showPage()
+                y_position = page_height - margin
+
+                # Add continuation header in dual format
+                if self._internal_braille_converter and self._braille_font_available:
+                    try:
+                        cont_braille = self._internal_braille_converter.convert_text("KEY (continued)")
+                        canvas_obj.setFont(braille_font, 14)
+                        canvas_obj.setFillColorRGB(0, 0, 0)
+                        canvas_obj.drawString(margin, y_position, cont_braille)
+                        y_position -= 18
+                    except Exception:
+                        pass
+
+                canvas_obj.setFont("Helvetica-Bold", 14)
+                canvas_obj.setFillColorRGB(0, 0, 0)
+                canvas_obj.drawString(margin, y_position, "KEY (continued)")
+                y_position -= 30
+
+            # Line 1 (Braille): letter_braille = braille_full
+            if self._internal_braille_converter and self._braille_font_available:
+                try:
+                    # Convert the letter to Braille
+                    letter_braille = self._internal_braille_converter.convert_text(entry.letter)
+                    equals_braille = self._internal_braille_converter.convert_text("=")
+
+                    # Construct Braille line: letter_braille = braille_full
+                    braille_line = f"{letter_braille} {equals_braille} {entry.braille_full}"
+
+                    canvas_obj.setFont(braille_font, braille_font_size)
+                    canvas_obj.setFillColorRGB(0, 0, 0)
+                    canvas_obj.drawString(margin, y_position, braille_line)
+                except Exception as e:
+                    self.logger.debug(f"Failed to render Braille entry for {entry.letter}: {e}")
+
+            y_position -= braille_line_height
+
+            # Line 2 (Print): letter = original_text
+            print_line = f"{entry.letter} = {entry.original_text}"
+
+            # Truncate if too long
+            max_chars = 60
+            if len(print_line) > max_chars:
+                print_line = print_line[:max_chars - 3] + "..."
+
+            canvas_obj.setFont("Helvetica", print_font_size)
+            canvas_obj.setFillColorRGB(0, 0, 0)
+            canvas_obj.drawString(margin, y_position, print_line)
+
+            y_position -= print_line_height + entry_spacing
+
+        self.logger.info(f"Added abbreviation key page with {len(key_entries)} entries")
 
     def add_key_page(self, canvas_obj: canvas.Canvas, symbol_key_entries: list,
                     page_width: float, page_height: float,
@@ -583,7 +722,9 @@ class PIAFPDFGenerator:
                             tile_overlap: float = 0.1,
                             add_registration_marks: bool = True,
                             metadata: Optional[dict] = None,
-                            braille_labels: Optional[list] = None) -> str:
+                            braille_labels: Optional[list] = None,
+                            key_entries: Optional[List[KeyEntry]] = None,
+                            braille_converter=None) -> str:
         """
         Generate multi-page tiled PDF for large images.
 
@@ -595,6 +736,8 @@ class PIAFPDFGenerator:
             add_registration_marks: Whether to add registration marks
             metadata: Optional metadata dictionary
             braille_labels: Optional list of BrailleLabel objects to render
+            key_entries: Optional list of KeyEntry objects for abbreviation key page
+            braille_converter: Optional BrailleConverter for key page rendering
 
         Returns:
             Path to generated PDF file
@@ -648,6 +791,12 @@ class PIAFPDFGenerator:
             c.setAuthor("Fabric Accessible Graphics Toolkit")
             c.setSubject("Tiled tactile graphics for PIAF printing")
             c.setCreator("fabric-access")
+
+            # Add abbreviation key page if there are key entries (at the beginning)
+            if key_entries:
+                self.logger.info(f"Adding abbreviation key page with {len(key_entries)} entries")
+                self.add_abbreviation_key_page(c, key_entries, page_width_pts, page_height_pts)
+                c.showPage()
 
             # Add assembly instructions as first page
             self.logger.info("Adding assembly instructions page")
@@ -721,3 +870,129 @@ class PIAFPDFGenerator:
             raise
         except Exception as e:
             raise PDFGeneratorError(f"Failed to generate tiled PDF: {str(e)}") from e
+    def generate_multipage(self, pages_data: List[Tuple[Image.Image, list]], 
+                          output_path: str, paper_size: str = "letter",
+                          shared_symbol_key: list = None,
+                          braille_converter=None) -> str:
+        """
+        Generate multi-page PDF from list of (processed_image, braille_labels) tuples.
+        
+        This method is used for combining multiple pages from a multi-page PDF input
+        into a single tactile output with shared context (symbol key) across all pages.
+
+        Args:
+            pages_data: List of (processed_image, braille_labels) tuples, one per page
+            output_path: Path for output PDF
+            paper_size: Paper size ('letter' or 'tabloid')
+            shared_symbol_key: Optional list of SymbolKeyEntry objects shared across all pages
+            braille_converter: Optional BrailleConverter for rendering Braille on key page
+
+        Returns:
+            Path to generated PDF file
+
+        Raises:
+            PDFGeneratorError: If PDF generation fails
+        """
+        from fabric_access.utils.validators import validate_output_path
+        
+        # Validate output path
+        is_valid, error_msg = validate_output_path(output_path)
+        if not is_valid:
+            raise PDFGeneratorError(error_msg)
+
+        self.logger.generating(f"Creating multi-page PDF with {len(pages_data)} pages")
+
+        try:
+            # Get paper dimensions
+            if paper_size not in self.SIZES:
+                raise PDFGeneratorError(f"Invalid paper size: {paper_size}")
+
+            page_width, page_height = self.SIZES[paper_size]
+            page_width_pts = page_width * inch
+            page_height_pts = page_height * inch
+
+            # Create PDF canvas
+            c = canvas.Canvas(output_path, pagesize=(page_width_pts, page_height_pts))
+
+            # Set metadata
+            c.setTitle("Multi-page PIAF Document")
+            c.setAuthor("Fabric Accessible Graphics Toolkit")
+            c.setSubject("Multi-page tactile graphics for PIAF printing")
+            c.setCreator("fabric-access")
+
+            # Process each page
+            for page_idx, (processed_image, braille_labels) in enumerate(pages_data, 1):
+                self.logger.progress(f"Adding page {page_idx} of {len(pages_data)}")
+
+                # Store image height for coordinate conversion
+                self.image_height = processed_image.size[1]
+
+                # Check if image fits
+                fits, (img_width, img_height) = self.fits_on_page(
+                    processed_image, paper_size, self.TARGET_DPI
+                )
+
+                if not fits:
+                    # Calculate scaling factor
+                    scale_w = page_width / img_width
+                    scale_h = page_height / img_height
+                    scale = min(scale_w, scale_h) * 0.95  # 5% margin
+                    img_width *= scale
+                    img_height *= scale
+
+                # Center image on page
+                x_offset = (page_width - img_width) / 2 * inch
+                y_offset = (page_height - img_height) / 2 * inch
+
+                # Convert PIL Image to format reportlab can use
+                img_buffer = io.BytesIO()
+                processed_image.save(img_buffer, format='PNG')
+                img_buffer.seek(0)
+                img_reader = ImageReader(img_buffer)
+
+                # Draw image
+                c.drawImage(
+                    img_reader,
+                    x_offset,
+                    y_offset,
+                    width=img_width * inch,
+                    height=img_height * inch,
+                    preserveAspectRatio=True
+                )
+
+                # Add Braille labels if provided
+                if braille_labels:
+                    scale_factor = img_width / processed_image.size[0]
+                    self._add_braille_labels(c, braille_labels, scale_factor, x_offset, y_offset)
+
+                # Add page number label at bottom
+                page_label = f"Page {page_idx} of {len(pages_data)}"
+                self.add_tile_label(c, page_label, page_width_pts, page_height_pts)
+
+                # New page for next image (but not after the last one)
+                if page_idx < len(pages_data):
+                    c.showPage()
+
+            # Add shared symbol key page at the end if provided
+            if shared_symbol_key:
+                c.showPage()
+                self.add_key_page(c, shared_symbol_key, page_width_pts, page_height_pts,
+                                 braille_converter)
+
+            # Save PDF
+            c.save()
+
+            self.logger.success(f"Multi-page PDF saved to {Path(output_path).name}")
+            total_pages = len(pages_data) + (1 if shared_symbol_key else 0)
+            self.logger.info(f"Total pages: {total_pages}")
+            self.logger.blank_line()
+            self.logger.complete("Multi-page output generation finished successfully")
+            self.logger.info("Ready to print on PIAF machine")
+
+            return output_path
+
+        except PDFGeneratorError:
+            raise
+        except Exception as e:
+            raise PDFGeneratorError(f"Failed to generate multi-page PDF: {str(e)}") from e
+

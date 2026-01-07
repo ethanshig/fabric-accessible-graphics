@@ -83,10 +83,29 @@ Convert an image to PIAF-ready PDF.
 - `detect_text`: Enable OCR text detection (default: true)
 - `braille_grade`: Braille grade 1 or 2 (default: 2)
 - `auto_reduce_density`: Auto-reduce density if too high
+- `tile_overlap`: Overlap between tiles 0.0-1.0 (default: 0.0)
+
+**Auto-Scaling Parameters:**
+- `auto_scale`: Enable automatic image scaling to fit Braille labels (default: true)
+- `max_scale_factor`: Maximum scale factor (default: unlimited, warning at 300%+)
+- `scale_percent`: Manual scale override (bypasses auto-scale calculation)
+
+**Abbreviation Key Parameters:**
+- `use_abbreviation_key`: Enable abbreviation key for labels that don't fit (default: true)
+- `force_abbreviation_key`: Force ALL labels to use abbreviations (default: false)
+
+**Zoom Parameters:**
+- `zoom_region`: Percentage-based region [x%, y%, width%, height%] (e.g., [25, 30, 50, 40])
+- `zoom_to`: Natural language zoom target (e.g., "kitchen", "Bedroom 1") - uses Claude vision
+- `zoom_regions`: List of regions for multi-page output (each with x_percent, y_percent, width_percent, height_percent, label)
 
 **Example usage:**
 > "Convert /home/student/floor-plan.jpg to tactile"
 > "Convert section-detail.png using the section preset"
+> "Convert this plan without auto-scaling" (set auto_scale=false)
+> "Convert with maximum 150% scaling" (set max_scale_factor=1.5)
+> "Convert floor-plan.jpg and zoom to the kitchen"
+> "Convert plan.png with separate pages for each bedroom"
 
 ### list_presets
 
@@ -182,6 +201,31 @@ A technical line drawing presents a structural building section cut through a mu
 The composition centers on a rectangular frame approximately three stories tall, with the cut plane running vertically through the middle. Heavy line weights define the section-cut elements—columns and floor slabs shown in profile—while lighter lines indicate elements beyond the cut plane. The viewpoint is orthographic, looking perpendicular to the cut plane, with the top of the page representing the roof level...
 
 [continues with Micro layer details about structural connections, dimensions, and multi-sensory analogies]
+
+### Zooming to a Region
+
+**Student:** Convert the floor plan at plan.jpg but just zoom to the kitchen area
+
+**Claude:** I'll identify the kitchen region and zoom to it.
+
+*[Uses convert_to_tactile with zoom_to="kitchen"]*
+
+I found the kitchen in the upper-right area of the floor plan. Zoomed in and scaled to fill the page. Output: plan_kitchen_piaf.pdf. 4 Braille labels added for the zoomed region. Ready for PIAF!
+
+### Multi-Region Zoom
+
+**Student:** I need separate pages for each bedroom in this floor plan
+
+**Claude:** I'll identify all bedrooms and create a multi-page PDF.
+
+*[Uses convert_to_tactile with zoom_regions for each bedroom]*
+
+Created a 3-page PDF:
+- Page 1: Bedroom 1 (master, upper-left)
+- Page 2: Bedroom 2 (lower-left)
+- Page 3: Bedroom 3 (lower-right)
+
+Each room is scaled to fill the page. Output: plan_zoomed_piaf.pdf
 
 ## Troubleshooting
 
