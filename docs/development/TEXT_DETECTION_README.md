@@ -48,7 +48,7 @@ tesseract --version
 
 ## Configuration
 
-Text detection is configured in `src/fabric_access/data/tactile_standards.yaml`:
+Text detection is configured in `src/tactile_core/data/tactile_standards.yaml`:
 
 ```yaml
 text_detection:
@@ -84,9 +84,9 @@ text_detection:
 ### Programmatic Usage
 
 ```python
-from fabric_access.core.processor import ImageProcessor
-from fabric_access.config.standards_loader import StandardsLoader
-from fabric_access.utils.logger import AccessibleLogger
+from tactile_core.core.processor import ImageProcessor
+from tactile_core.config.standards_loader import StandardsLoader
+from tactile_core.utils.logger import AccessibleLogger
 
 # Load configuration
 loader = StandardsLoader()
@@ -124,8 +124,8 @@ for dt in dimensions:
 ### Using the Text Detector Directly
 
 ```python
-from fabric_access.core.text_detector import TextDetector, TextDetectionConfig
-from fabric_access.utils.logger import AccessibleLogger
+from tactile_core.core.text_detector import TextDetector, TextDetectionConfig
+from tactile_core.utils.logger import AccessibleLogger
 from PIL import Image
 
 # Configure text detector
@@ -263,7 +263,7 @@ Text detection runs BEFORE thresholding because:
 ### Module Structure
 
 ```
-src/fabric_access/core/text_detector.py
+src/tactile_core/core/text_detector.py
   - TextDetectionError: Custom exception
   - TextDetectionConfig: Configuration dataclass
   - DetectedText: Result dataclass

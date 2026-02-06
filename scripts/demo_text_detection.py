@@ -12,9 +12,9 @@ from pathlib import Path
 # Add src directory to path
 sys.path.insert(0, str(Path(__file__).parent / 'src'))
 
-from fabric_access.core.processor import ImageProcessor
-from fabric_access.config.standards_loader import StandardsLoader
-from fabric_access.utils.logger import AccessibleLogger
+from tactile_core.core.processor import ImageProcessor
+from tactile_core.config.standards_loader import StandardsLoader
+from tactile_core.utils.logger import AccessibleLogger
 
 
 def demo_text_detection(image_path: str):

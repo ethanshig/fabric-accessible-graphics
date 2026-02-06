@@ -17,7 +17,7 @@ ln -s /usr/lib/python3/dist-packages/louis venv/lib/python3.12/site-packages/lou
 Your system already had liblouis 3.29.0 installed. We created a symlink so the virtual environment can access it.
 
 ### 2. Updated Braille Converter Code
-**File:** `src/fabric_access/core/braille_converter.py`
+**File:** `src/tactile_core/core/braille_converter.py`
 
 **Changes:**
 - Modified `convert_text()` to use `louis.translate()` with proper mode flags
@@ -94,17 +94,17 @@ All test cases now produce proper Unicode Braille:
 
 ### Basic Command
 ```bash
-fabric-access image-to-piaf floor-plan.jpg --detect-text --verbose
+tactile image-to-piaf floor-plan.jpg --detect-text --verbose
 ```
 
 ### With Grade 2 Braille
 ```bash
-fabric-access image-to-piaf floor-plan.jpg --detect-text --braille-grade 2
+tactile image-to-piaf floor-plan.jpg --detect-text --braille-grade 2
 ```
 
 ### With Tiling for Large Plans
 ```bash
-fabric-access image-to-piaf large-plan.jpg --detect-text --enable-tiling --paper-size tabloid
+tactile image-to-piaf large-plan.jpg --detect-text --enable-tiling --paper-size tabloid
 ```
 
 ## Technical Details
@@ -141,7 +141,7 @@ This ensures the tool works even without liblouis, with degraded but functional 
 
 ## Files Modified
 
-1. **src/fabric_access/core/braille_converter.py**
+1. **src/tactile_core/core/braille_converter.py**
    - Lines 229-240: Updated convert_text() method
    - Added proper Unicode Braille mode flags
 
@@ -177,7 +177,7 @@ python -c "import louis; print(louis.version())"
 python tests/test_braille_conversion.py
 
 # Test with real image
-fabric-access image-to-piaf ANNEX-PLANS-OFFICIAL_Page_1.jpg --detect-text --braille-grade 2 --verbose
+tactile image-to-piaf ANNEX-PLANS-OFFICIAL_Page_1.jpg --detect-text --braille-grade 2 --verbose
 ```
 
 ## Conclusion

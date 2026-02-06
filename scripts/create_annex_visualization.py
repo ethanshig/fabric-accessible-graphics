@@ -11,8 +11,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent / 'src'))
 
 from PIL import Image, ImageDraw
-from fabric_access.core.text_detector import TextDetector, TextDetectionConfig
-from fabric_access.utils.logger import AccessibleLogger
+from tactile_core.core.text_detector import TextDetector, TextDetectionConfig
+from tactile_core.utils.logger import AccessibleLogger
 
 
 def create_text_visualization(input_path: str, output_path: str):

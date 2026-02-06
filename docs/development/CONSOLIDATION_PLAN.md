@@ -10,7 +10,7 @@
 ## Architecture Overview
 
 ```
-src/fabric_access/
+src/tactile_core/
 ├── core/
 │   └── converter.py      # NEW: TactileConverter, ConversionParams, ConversionResult
 ├── cli.py                # Thin wrapper (~400 lines, down from 896)
@@ -25,7 +25,7 @@ src/fabric_access/
 
 ## Phase 1: Create Shared Core Module
 
-**Create**: `src/fabric_access/core/converter.py`
+**Create**: `src/tactile_core/core/converter.py`
 
 ### ConversionParams dataclass
 ```python
@@ -115,7 +115,7 @@ class ConversionResult:
 
 ## Phase 2: Add New CLI Options
 
-**Modify**: `src/fabric_access/cli.py`
+**Modify**: `src/tactile_core/cli.py`
 
 ### New Scaling Options
 | Option | Type | Default | Help |
@@ -143,7 +143,7 @@ Add same options to `batch` command:
 
 ## Phase 3: Refactor MCP Tools
 
-**Modify**: `src/fabric_access/mcp_server/tools.py`
+**Modify**: `src/tactile_core/mcp_server/tools.py`
 
 1. Rename function `convert_to_tactile` → `image_to_piaf` (no backward compat alias)
 2. Extract common logic to call `TactileConverter.convert()`
@@ -153,14 +153,14 @@ Add same options to `batch` command:
    - `_merge_hybrid_ocr()` (merge Claude text with Tesseract positions)
    - `_handle_quality_assessment_phase()` (Claude visual comparison)
 
-**Modify**: `src/fabric_access/mcp_server/server.py`
+**Modify**: `src/tactile_core/mcp_server/server.py`
 - Update tool registration: `mcp.tool()(image_to_piaf)`
 
 ---
 
 ## Phase 4: Refactor CLI to Use Core
 
-**Modify**: `src/fabric_access/cli.py`
+**Modify**: `src/tactile_core/cli.py`
 
 1. Import `TactileConverter`, `ConversionParams`
 2. Build `ConversionParams` from Click options
@@ -183,10 +183,10 @@ Add same options to `batch` command:
 
 | File | Action | Lines (before→after) |
 |------|--------|---------------------|
-| `src/fabric_access/core/converter.py` | CREATE | 0 → ~600 |
-| `src/fabric_access/cli.py` | MODIFY | 896 → ~400 |
-| `src/fabric_access/mcp_server/tools.py` | MODIFY | 1875 → ~600 |
-| `src/fabric_access/mcp_server/server.py` | MODIFY | minor (rename) |
+| `src/tactile_core/core/converter.py` | CREATE | 0 → ~600 |
+| `src/tactile_core/cli.py` | MODIFY | 896 → ~400 |
+| `src/tactile_core/mcp_server/tools.py` | MODIFY | 1875 → ~600 |
+| `src/tactile_core/mcp_server/server.py` | MODIFY | minor (rename) |
 | `docs/COMMAND_REFERENCE.md` | MODIFY | update |
 
 ---

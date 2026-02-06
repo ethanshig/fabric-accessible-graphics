@@ -45,7 +45,14 @@ batch-output/
 .coverage
 htmlcov/
 
-# Credentials (if any)
+# Credentials & API Keys - NEVER COMMIT
 .env
+.env.*
+*.env
 *.key
 credentials.json
+secrets/
+.gemini/
+**/api_key*
+**/apikey*
+**/*secret*

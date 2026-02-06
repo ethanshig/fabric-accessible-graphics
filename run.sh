@@ -6,8 +6,8 @@ source venv/bin/activate
 
 echo ""
 echo "Environment activated! You can now use:"
-echo "  fabric-access info"
-echo "  fabric-access image-to-piaf [IMAGE]"
+echo "  tactile info"
+echo "  tactile image-to-piaf [IMAGE]"
 echo ""
 echo "To deactivate when done, type: deactivate"
 echo ""

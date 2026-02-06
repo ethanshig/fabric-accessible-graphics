@@ -57,7 +57,7 @@ WORKFLOW:
 - Category-specific conversion rules
 - Quality criteria for tactile output
 
-**Image-to-PIAF** (fabric-access CLI tool)
+**Image-to-PIAF** (tactile CLI tool)
 - Converts images to high-contrast black/white
 - Applies text detection and Braille conversion
 - Handles tiling for oversized images
@@ -299,7 +299,7 @@ KEY_FEATURES:
 ### CLI Command Syntax
 
 ```bash
-fabric-access image-to-piaf INPUT_PATH [OPTIONS]
+tactile image-to-piaf INPUT_PATH [OPTIONS]
 ```
 
 ### Core Options
@@ -344,19 +344,19 @@ AVAILABLE_PRESETS: floor_plan, sketch, photograph, elevation, section, diagram, 
 
 ```bash
 # Floor plan with text detection and Grade 2 Braille
-fabric-access image-to-piaf floor-plan.jpg --preset floor_plan --detect-text --braille-grade 2 --verbose
+tactile image-to-piaf floor-plan.jpg --preset floor_plan --detect-text --braille-grade 2 --verbose
 
 # Structural diagram (clean lines, no enhancement)
-fabric-access image-to-piaf beam-diagram.png --preset technical_drawing --detect-text --braille-grade 2
+tactile image-to-piaf beam-diagram.png --preset technical_drawing --detect-text --braille-grade 2
 
 # Large site plan requiring tiling
-fabric-access image-to-piaf site-plan.pdf --preset site_plan --enable-tiling --detect-text --braille-grade 2
+tactile image-to-piaf site-plan.pdf --preset site_plan --enable-tiling --detect-text --braille-grade 2
 
 # Photograph with heavy contrast enhancement
-fabric-access image-to-piaf building-photo.jpg --preset photograph --detect-text --braille-grade 2 --verbose
+tactile image-to-piaf building-photo.jpg --preset photograph --detect-text --braille-grade 2 --verbose
 
 # Custom settings (override preset)
-fabric-access image-to-piaf sketch.jpg --preset sketch --threshold 120 --enhance-strength 1.5
+tactile image-to-piaf sketch.jpg --preset sketch --threshold 120 --enhance-strength 1.5
 ```
 
 ### LLM Invocation Pattern
@@ -365,7 +365,7 @@ When an LLM determines parameters, construct the command as:
 
 ```
 COMMAND_TEMPLATE:
-  fabric-access image-to-piaf "{input_path}" \
+  tactile image-to-piaf "{input_path}" \
     --preset {category_preset} \
     --detect-text \
     --braille-grade 2 \
@@ -529,7 +529,7 @@ PROPOSED_FIX: Describe gradients in text; consider contour lines for topography
 
 ```
 STANDARD_COMMAND:
-fabric-access image-to-piaf INPUT --preset PRESET --detect-text --braille-grade 2 --verbose
+tactile image-to-piaf INPUT --preset PRESET --detect-text --braille-grade 2 --verbose
 
 PRESET SELECTION:
   Plans/Sections -> floor_plan, section

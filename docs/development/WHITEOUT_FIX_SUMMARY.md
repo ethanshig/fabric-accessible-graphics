@@ -21,7 +21,7 @@ font_size_px = font_size * (DPI / POINTS_PER_INCH)
 
 ### Verification
 ```bash
-python -m fabric_access.cli image-to-piaf Plan_Test.png --detect-text -o test.pdf
+python -m tactile_core.cli image-to-piaf Plan_Test.png --detect-text -o test.pdf
 ```
 
 ---
@@ -51,7 +51,7 @@ This caused whiteout rectangles to be approximately **4× smaller** than they sh
 
 ## Files Modified
 
-### 1. `/src/fabric_access/core/braille_converter.py`
+### 1. `/src/tactile_core/core/braille_converter.py`
 **Issue**: Width and height calculations used font_size directly as pixels
 
 **Fixed methods**:
@@ -70,7 +70,7 @@ font_size_px = self.config.font_size * (DPI / POINTS_PER_INCH)
 char_width = font_size_px * 0.6  # Using actual pixels
 ```
 
-### 2. `/src/fabric_access/core/processor.py`
+### 2. `/src/tactile_core/core/processor.py`
 **Issue**: `whiteout_braille_regions()` used font_size in points to calculate pixel dimensions
 
 **Fixed**:
@@ -90,7 +90,7 @@ font_size_px = int(font_size * pixels_per_point)
 label_height = font_size_px  # Using actual pixels
 ```
 
-### 3. `/src/fabric_access/core/pdf_generator.py`
+### 3. `/src/tactile_core/core/pdf_generator.py`
 **Issue**: PDF baseline calculation used font_size in points for pixel-based coordinate transformation
 
 **Fixed**:
@@ -141,10 +141,10 @@ final_y = baseline_pdf_y * inch + y_offset
 ### Test Commands
 ```bash
 # Test with Plan_Test.png
-python -m fabric_access.cli image-to-piaf Plan_Test.png --detect-text -o test-whiteout-FINAL.pdf
+python -m tactile_core.cli image-to-piaf Plan_Test.png --detect-text -o test-whiteout-FINAL.pdf
 
 # Test with ANNEX image
-python -m fabric_access.cli image-to-piaf ANNEX-PLANS-OFFICIAL_Page_1.jpg --detect-text -o test-annex-whiteout-FINAL.pdf
+python -m tactile_core.cli image-to-piaf ANNEX-PLANS-OFFICIAL_Page_1.jpg --detect-text -o test-annex-whiteout-FINAL.pdf
 ```
 
 ### Expected Results

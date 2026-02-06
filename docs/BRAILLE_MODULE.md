@@ -59,7 +59,7 @@ print(louis.version())
 Configuration dataclass for Braille conversion settings.
 
 ```python
-from fabric_access.core.braille_converter import BrailleConfig
+from tactile_core.core.braille_converter import BrailleConfig
 
 config = BrailleConfig(
     enabled=True,           # Enable Braille conversion
@@ -81,8 +81,8 @@ config = BrailleConfig(
 Main converter class for text-to-Braille conversion.
 
 ```python
-from fabric_access.core.braille_converter import BrailleConverter
-from fabric_access.utils.logger import AccessibleLogger
+from tactile_core.core.braille_converter import BrailleConverter
+from tactile_core.utils.logger import AccessibleLogger
 
 logger = AccessibleLogger(verbose=True)
 converter = BrailleConverter(config, logger)
@@ -92,7 +92,7 @@ braille_text = converter.convert_text("10'-6\"")
 print(braille_text)  # Unicode Braille output
 
 # Convert multiple detected texts
-from fabric_access.core.braille_converter import DetectedText
+from tactile_core.core.braille_converter import DetectedText
 
 detected_texts = [
     DetectedText(text="Kitchen", x=100, y=200, width=80, height=20),
@@ -135,7 +135,7 @@ class DetectedText:
 The Braille labels integrate seamlessly with the PIAF PDF generator.
 
 ```python
-from fabric_access.core.pdf_generator import PIAFPDFGenerator
+from tactile_core.core.pdf_generator import PIAFPDFGenerator
 from PIL import Image
 
 # Create PDF generator with Braille config
@@ -160,7 +160,7 @@ pdf_gen.generate(
 
 ## Configuration (YAML)
 
-Configure Braille settings in `src/fabric_access/data/tactile_standards.yaml`:
+Configure Braille settings in `src/tactile_core/data/tactile_standards.yaml`:
 
 ```yaml
 braille:
@@ -181,7 +181,7 @@ braille:
 Load configuration:
 
 ```python
-from fabric_access.config.standards_loader import load_standards
+from tactile_core.config.standards_loader import load_standards
 
 standards = load_standards()
 braille_config_dict = standards.get('braille', {})
@@ -297,7 +297,7 @@ config = BrailleConfig(
 Raised when conversion fails:
 
 ```python
-from fabric_access.core.braille_converter import BrailleConversionError
+from tactile_core.core.braille_converter import BrailleConversionError
 
 try:
     converter = BrailleConverter(config, logger)
@@ -330,8 +330,8 @@ except BrailleConversionError as e:
 ### Example 1: Simple Conversion
 
 ```python
-from fabric_access.core.braille_converter import BrailleConverter, BrailleConfig
-from fabric_access.utils.logger import AccessibleLogger
+from tactile_core.core.braille_converter import BrailleConverter, BrailleConfig
+from tactile_core.utils.logger import AccessibleLogger
 
 logger = AccessibleLogger(verbose=True)
 config = BrailleConfig(enabled=True, grade=1)
@@ -346,11 +346,11 @@ print(f"{dimension} -> {braille}")
 ### Example 2: Full Pipeline
 
 ```python
-from fabric_access.core.braille_converter import (
+from tactile_core.core.braille_converter import (
     BrailleConverter, BrailleConfig, DetectedText
 )
-from fabric_access.core.pdf_generator import PIAFPDFGenerator
-from fabric_access.utils.logger import AccessibleLogger
+from tactile_core.core.pdf_generator import PIAFPDFGenerator
+from tactile_core.utils.logger import AccessibleLogger
 from PIL import Image
 
 # Setup
@@ -593,7 +593,7 @@ When Braille labels are too large to fit in the original text bounding boxes, th
 2. **Generate abbreviation key** - Labels that still don't fit get letter codes (A, B, C...) with a key page at the beginning
 
 ```python
-# New parameters in convert_to_tactile():
+# New parameters in image_to_piaf():
 auto_scale=True,           # Enable auto-scaling
 max_scale_factor=2.0,      # Max 200% enlargement
 use_abbreviation_key=True  # Enable key generation

@@ -138,7 +138,7 @@ SOLUTIONS:
 ### Standard Floor Plan
 
 ```bash
-fabric-access image-to-piaf floor_plan.jpg \
+tactile image-to-piaf floor_plan.jpg \
   --preset floor_plan \
   --detect-text \
   --braille-grade 2 \
@@ -153,7 +153,7 @@ PRESET_SETTINGS (floor_plan):
 ### Large/Complex Floor Plan
 
 ```bash
-fabric-access image-to-piaf large_plan.jpg \
+tactile image-to-piaf large_plan.jpg \
   --preset floor_plan \
   --detect-text \
   --braille-grade 2 \
@@ -164,7 +164,7 @@ fabric-access image-to-piaf large_plan.jpg \
 ### Very Large Floor Plan (Tiling Required)
 
 ```bash
-fabric-access image-to-piaf very_large_plan.jpg \
+tactile image-to-piaf very_large_plan.jpg \
   --preset floor_plan \
   --detect-text \
   --braille-grade 2 \
@@ -176,7 +176,7 @@ fabric-access image-to-piaf very_large_plan.jpg \
 ### Floor Plan with Heavy Poche
 
 ```bash
-fabric-access image-to-piaf poche_plan.jpg \
+tactile image-to-piaf poche_plan.jpg \
   --preset floor_plan \
   --threshold 160 \
   --detect-text \
@@ -189,7 +189,7 @@ NOTE: Higher threshold (160 vs 140) reduces solid black areas
 ### Furniture Plan
 
 ```bash
-fabric-access image-to-piaf furniture_plan.jpg \
+tactile image-to-piaf furniture_plan.jpg \
   --preset floor_plan \
   --threshold 130 \
   --detect-text \
@@ -218,7 +218,7 @@ FEATURES:
 
 RECOMMENDED_COMMAND:
 ```bash
-fabric-access image-to-piaf ANNEX-PLANS-OFFICIAL_Page_1.jpg \
+tactile image-to-piaf ANNEX-PLANS-OFFICIAL_Page_1.jpg \
   --preset floor_plan \
   --detect-text \
   --braille-grade 2 \
@@ -239,7 +239,7 @@ SIZE: 792 x 612 pixels (fits on letter)
 
 RECOMMENDED_COMMAND:
 ```bash
-fabric-access image-to-piaf plan_test.jpg \
+tactile image-to-piaf plan_test.jpg \
   --preset floor_plan \
   --detect-text \
   --braille-grade 2 \
@@ -317,7 +317,7 @@ FLOOR PLAN CONVERSION CHECKLIST:
 [ ] Verify key page generated if symbols used
 
 STANDARD COMMAND:
-fabric-access image-to-piaf [FILE] --preset floor_plan --detect-text --braille-grade 2 --verbose
+tactile image-to-piaf [FILE] --preset floor_plan --detect-text --braille-grade 2 --verbose
 
 ADJUSTMENTS:
 - Too dark? -> increase threshold (150, 160, 170)

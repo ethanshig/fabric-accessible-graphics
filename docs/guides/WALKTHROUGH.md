@@ -54,17 +54,17 @@ You'll see `(venv)` appear at the start of your command prompt, indicating the e
 Once in WSL with the environment activated:
 
 ```bash
-fabric-access --version
+tactile --version
 ```
 
-You should see: `fabric-access, version 0.1.0`
+You should see: `tactile, version 0.1.0`
 
 ## Basic Usage
 
 ### Step 1: Check what the tool can do
 
 ```bash
-fabric-access info
+tactile info
 ```
 
 This displays:
@@ -76,7 +76,7 @@ This displays:
 ### Step 2: Get help for a specific command
 
 ```bash
-fabric-access image-to-piaf --help
+tactile image-to-piaf --help
 ```
 
 This shows all available options and examples.
@@ -88,7 +88,7 @@ This shows all available options and examples.
 Convert an image with all default settings:
 
 ```bash
-fabric-access image-to-piaf my-floor-plan.jpg
+tactile image-to-piaf my-floor-plan.jpg
 ```
 
 **What happens:**
@@ -103,7 +103,7 @@ fabric-access image-to-piaf my-floor-plan.jpg
 See detailed progress as the tool works:
 
 ```bash
-fabric-access image-to-piaf my-floor-plan.jpg --verbose
+tactile image-to-piaf my-floor-plan.jpg --verbose
 ```
 
 **You'll see:**
@@ -134,7 +134,7 @@ Ready to print on PIAF machine
 Get prompted step-by-step:
 
 ```bash
-fabric-access image-to-piaf my-floor-plan.jpg --interactive
+tactile image-to-piaf my-floor-plan.jpg --interactive
 ```
 
 **Interactive flow:**
@@ -159,7 +159,7 @@ Continue with these settings? [Y/n]: y
 Adjust the black/white threshold:
 
 ```bash
-fabric-access image-to-piaf sketch.png --threshold 140 --verbose
+tactile image-to-piaf sketch.png --threshold 140 --verbose
 ```
 
 **When to adjust threshold:**
@@ -172,7 +172,7 @@ fabric-access image-to-piaf sketch.png --threshold 140 --verbose
 Choose where to save the PDF:
 
 ```bash
-fabric-access image-to-piaf drawing.jpg --output /path/to/output/final-print.pdf
+tactile image-to-piaf drawing.jpg --output /path/to/output/final-print.pdf
 ```
 
 ### Scenario 6: Large Format (Tabloid)
@@ -180,7 +180,7 @@ fabric-access image-to-piaf drawing.jpg --output /path/to/output/final-print.pdf
 For larger drawings that need 11x17" paper:
 
 ```bash
-fabric-access image-to-piaf large-elevation.png --paper-size tabloid --verbose
+tactile image-to-piaf large-elevation.png --paper-size tabloid --verbose
 ```
 
 ## Phase 2 Features - Advanced Conversion
@@ -194,7 +194,7 @@ Presets provide optimized settings for common image types. Instead of guessing t
 #### Step 1: See All Available Presets
 
 ```bash
-fabric-access list-presets
+tactile list-presets
 ```
 
 **You'll see:**
@@ -277,16 +277,16 @@ technical_drawing
 
 ```bash
 # For a floor plan
-fabric-access image-to-piaf my-floor-plan.jpg --preset floor_plan --verbose
+tactile image-to-piaf my-floor-plan.jpg --preset floor_plan --verbose
 
 # For a hand sketch
-fabric-access image-to-piaf my-sketch.png --preset sketch --verbose
+tactile image-to-piaf my-sketch.png --preset sketch --verbose
 
 # For a photograph
-fabric-access image-to-piaf model-photo.jpg --preset photograph --verbose
+tactile image-to-piaf model-photo.jpg --preset photograph --verbose
 
 # For a site plan (automatically uses tabloid paper)
-fabric-access image-to-piaf site.png --preset site_plan --verbose
+tactile image-to-piaf site.png --preset site_plan --verbose
 ```
 
 **What happens:**
@@ -302,10 +302,10 @@ If a preset is almost perfect but you want to tweak one setting:
 
 ```bash
 # Use floor_plan preset but change threshold
-fabric-access image-to-piaf plan.jpg --preset floor_plan --threshold 150 --verbose
+tactile image-to-piaf plan.jpg --preset floor_plan --threshold 150 --verbose
 
 # Use sketch preset but disable enhancement
-fabric-access image-to-piaf sketch.png --preset sketch --enhance none
+tactile image-to-piaf sketch.png --preset sketch --enhance none
 ```
 
 **Preset recommendations by image type:**
@@ -339,13 +339,13 @@ S-curve boosts midtone contrast, making lines crisper and more defined - like us
 
 ```bash
 # Standard S-curve (strength 1.0)
-fabric-access image-to-piaf plan.jpg --enhance s_curve --verbose
+tactile image-to-piaf plan.jpg --enhance s_curve --verbose
 
 # Stronger enhancement for very faint images
-fabric-access image-to-piaf faint-sketch.jpg --enhance s_curve --enhance-strength 1.5 --verbose
+tactile image-to-piaf faint-sketch.jpg --enhance s_curve --enhance-strength 1.5 --verbose
 
 # Subtle enhancement
-fabric-access image-to-piaf drawing.jpg --enhance s_curve --enhance-strength 0.7 --verbose
+tactile image-to-piaf drawing.jpg --enhance s_curve --enhance-strength 0.7 --verbose
 ```
 
 **Strength guide:**
@@ -358,16 +358,16 @@ fabric-access image-to-piaf drawing.jpg --enhance s_curve --enhance-strength 0.7
 
 ```bash
 # Auto-contrast: Stretches histogram to full range
-fabric-access image-to-piaf scan.jpg --enhance auto_contrast --verbose
+tactile image-to-piaf scan.jpg --enhance auto_contrast --verbose
 
 # CLAHE: Good for photographs with uneven lighting
-fabric-access image-to-piaf photo.jpg --enhance clahe --verbose
+tactile image-to-piaf photo.jpg --enhance clahe --verbose
 
 # Histogram equalization: For very dark or light images
-fabric-access image-to-piaf dark-image.jpg --enhance histogram --verbose
+tactile image-to-piaf dark-image.jpg --enhance histogram --verbose
 
 # No enhancement
-fabric-access image-to-piaf crisp-cad.jpg --enhance none --verbose
+tactile image-to-piaf crisp-cad.jpg --enhance none --verbose
 ```
 
 **Method comparison:**
@@ -385,7 +385,7 @@ Convert entire folders of images at once - perfect for processing assignment set
 
 ```bash
 # Process all images in a folder using a preset
-fabric-access batch ./my-drawings ./output-pdfs --preset floor_plan --verbose
+tactile batch ./my-drawings ./output-pdfs --preset floor_plan --verbose
 ```
 
 **What happens:**
@@ -428,7 +428,7 @@ Process images in subdirectories too:
 
 ```bash
 # Process entire project folder with nested folders
-fabric-access batch ./semester-project ./output --preset floor_plan --recursive --verbose
+tactile batch ./semester-project ./output --preset floor_plan --recursive --verbose
 ```
 
 **Example folder structure:**
@@ -457,13 +457,13 @@ Apply specific settings to all files:
 
 ```bash
 # Custom threshold for all images
-fabric-access batch ./sketches ./output --threshold 130 --enhance s_curve --verbose
+tactile batch ./sketches ./output --threshold 130 --enhance s_curve --verbose
 
 # Use photograph preset with enhanced strength
-fabric-access batch ./model-photos ./output --preset photograph --enhance-strength 1.2 --verbose
+tactile batch ./model-photos ./output --preset photograph --enhance-strength 1.2 --verbose
 
 # Tabloid paper for all
-fabric-access batch ./large-plans ./output --paper-size tabloid --verbose
+tactile batch ./large-plans ./output --paper-size tabloid --verbose
 ```
 
 #### File Pattern Filtering
@@ -472,13 +472,13 @@ Process only specific file types:
 
 ```bash
 # Only PNG files
-fabric-access batch ./mixed-files ./output --pattern "*.png" --preset floor_plan
+tactile batch ./mixed-files ./output --pattern "*.png" --preset floor_plan
 
 # Only JPG and JPEG
-fabric-access batch ./photos ./output --pattern "*.jpg,*.jpeg" --preset photograph
+tactile batch ./photos ./output --pattern "*.jpg,*.jpeg" --preset photograph
 
 # Multiple types with specific preset
-fabric-access batch ./drawings ./output --pattern "*.png,*.jpg,*.tiff" --preset sketch
+tactile batch ./drawings ./output --pattern "*.png,*.jpg,*.tiff" --preset sketch
 ```
 
 **Default patterns:** `*.jpg,*.jpeg,*.png,*.tiff,*.tif` (all supported image formats)
@@ -527,7 +527,7 @@ Warning: Density is 42%, target is 40%
 **Action:**
 1. Try increasing the threshold:
    ```bash
-   fabric-access image-to-piaf plan.jpg --threshold 150
+   tactile image-to-piaf plan.jpg --threshold 150
    ```
 2. Or simplify the original image (remove unnecessary detail)
 
@@ -542,7 +542,7 @@ Error: Density too high: 48.5% (maximum: 45%)
 **Action:**
 1. Significantly increase threshold:
    ```bash
-   fabric-access image-to-piaf plan.jpg --threshold 170
+   tactile image-to-piaf plan.jpg --threshold 170
    ```
 2. Or edit the original image to remove dense patterns
 
@@ -570,7 +570,7 @@ ls -l plan.jpg
 source venv/bin/activate
 
 # Process entire folder with one command
-fabric-access batch ./my-drawings ./output --preset floor_plan --verbose
+tactile batch ./my-drawings ./output --preset floor_plan --verbose
 ```
 
 **Old way - convert each file individually:**
@@ -580,18 +580,18 @@ fabric-access batch ./my-drawings ./output --preset floor_plan --verbose
 source venv/bin/activate
 
 # Convert each file
-fabric-access image-to-piaf floor-plan-1.jpg --verbose
-fabric-access image-to-piaf floor-plan-2.jpg --verbose
-fabric-access image-to-piaf elevation.png --threshold 140 --verbose
+tactile image-to-piaf floor-plan-1.jpg --verbose
+tactile image-to-piaf floor-plan-2.jpg --verbose
+tactile image-to-piaf elevation.png --threshold 140 --verbose
 ```
 
 ### Workflow 2: Testing Different Presets
 
 ```bash
 # Try different presets to find the best result
-fabric-access image-to-piaf sketch.png --preset sketch --output test-sketch-preset.pdf
-fabric-access image-to-piaf sketch.png --preset floor_plan --output test-floor-preset.pdf
-fabric-access image-to-piaf sketch.png --preset technical_drawing --output test-technical-preset.pdf
+tactile image-to-piaf sketch.png --preset sketch --output test-sketch-preset.pdf
+tactile image-to-piaf sketch.png --preset floor_plan --output test-floor-preset.pdf
+tactile image-to-piaf sketch.png --preset technical_drawing --output test-technical-preset.pdf
 
 # Review the PDFs and choose the best one
 ```
@@ -600,9 +600,9 @@ fabric-access image-to-piaf sketch.png --preset technical_drawing --output test-
 
 ```bash
 # Try different S-curve strengths
-fabric-access image-to-piaf faint-drawing.jpg --enhance s_curve --enhance-strength 0.8 --output test-08.pdf
-fabric-access image-to-piaf faint-drawing.jpg --enhance s_curve --enhance-strength 1.0 --output test-10.pdf
-fabric-access image-to-piaf faint-drawing.jpg --enhance s_curve --enhance-strength 1.3 --output test-13.pdf
+tactile image-to-piaf faint-drawing.jpg --enhance s_curve --enhance-strength 0.8 --output test-08.pdf
+tactile image-to-piaf faint-drawing.jpg --enhance s_curve --enhance-strength 1.0 --output test-10.pdf
+tactile image-to-piaf faint-drawing.jpg --enhance s_curve --enhance-strength 1.3 --output test-13.pdf
 
 # Review and choose the clearest one
 ```
@@ -614,13 +614,13 @@ fabric-access image-to-piaf faint-drawing.jpg --enhance s_curve --enhance-streng
 source venv/bin/activate
 
 # 2. Convert your assignment drawing with appropriate preset
-fabric-access image-to-piaf my-floor-plan.jpg --preset floor_plan --verbose
+tactile image-to-piaf my-floor-plan.jpg --preset floor_plan --verbose
 
 # 3. Review the output
 # Check my-floor-plan_piaf.pdf
 
 # 4. If needed, adjust and reconvert
-fabric-access image-to-piaf my-floor-plan.jpg --preset floor_plan --threshold 145 --output my-floor-plan-v2.pdf --verbose
+tactile image-to-piaf my-floor-plan.jpg --preset floor_plan --threshold 145 --output my-floor-plan-v2.pdf --verbose
 
 # 5. Print the best version on PIAF machine
 ```
@@ -635,16 +635,16 @@ source venv/bin/activate
 mkdir -p project-output
 
 # Process all floor plans
-fabric-access batch ./project/plans ./project-output --preset floor_plan --verbose
+tactile batch ./project/plans ./project-output --preset floor_plan --verbose
 
 # Process all elevations
-fabric-access batch ./project/elevations ./project-output --preset elevation --verbose
+tactile batch ./project/elevations ./project-output --preset elevation --verbose
 
 # Process all sections
-fabric-access batch ./project/sections ./project-output --preset section --verbose
+tactile batch ./project/sections ./project-output --preset section --verbose
 
 # Or process everything at once recursively
-fabric-access batch ./project ./project-output --preset floor_plan --recursive --verbose
+tactile batch ./project ./project-output --preset floor_plan --recursive --verbose
 ```
 
 ### Workflow 6: Processing Scanned Hand Drawings
@@ -654,10 +654,10 @@ fabric-access batch ./project ./project-output --preset floor_plan --recursive -
 source venv/bin/activate
 
 # Use sketch preset with S-curve enhancement (automatically applied)
-fabric-access batch ./scanned-sketches ./output --preset sketch --verbose
+tactile batch ./scanned-sketches ./output --preset sketch --verbose
 
 # Or apply stronger enhancement if scans are very faint
-fabric-access batch ./scanned-sketches ./output --preset sketch --enhance-strength 1.5 --verbose
+tactile batch ./scanned-sketches ./output --preset sketch --enhance-strength 1.5 --verbose
 ```
 
 ## Tips for Best Results
@@ -668,7 +668,7 @@ fabric-access batch ./scanned-sketches ./output --preset sketch --enhance-streng
 
 ```bash
 # Let the preset handle all settings automatically
-fabric-access image-to-piaf YOUR-IMAGE.jpg --preset PRESET-NAME --verbose
+tactile image-to-piaf YOUR-IMAGE.jpg --preset PRESET-NAME --verbose
 ```
 
 Choose preset based on your image type (see preset list above in Phase 2 section).
@@ -677,12 +677,12 @@ Choose preset based on your image type (see preset list above in Phase 2 section
 
 **Phase 2 Method (Recommended):**
 ```bash
-fabric-access image-to-piaf plan.jpg --preset floor_plan --verbose
+tactile image-to-piaf plan.jpg --preset floor_plan --verbose
 ```
 
 **Manual Method:**
 ```bash
-fabric-access image-to-piaf plan.jpg --threshold 140
+tactile image-to-piaf plan.jpg --threshold 140
 ```
 - Higher threshold works well for crisp, clean lines
 - Usually low density
@@ -691,12 +691,12 @@ fabric-access image-to-piaf plan.jpg --threshold 140
 
 **Phase 2 Method (Recommended):**
 ```bash
-fabric-access image-to-piaf sketch.jpg --preset sketch --verbose
+tactile image-to-piaf sketch.jpg --preset sketch --verbose
 ```
 
 **Manual Method:**
 ```bash
-fabric-access image-to-piaf sketch.jpg --threshold 120 --enhance s_curve --enhance-strength 1.3 --verbose
+tactile image-to-piaf sketch.jpg --threshold 120 --enhance s_curve --enhance-strength 1.3 --verbose
 ```
 - S-curve enhancement helps boost faint pencil lines
 - Lower threshold preserves lighter lines
@@ -706,12 +706,12 @@ fabric-access image-to-piaf sketch.jpg --threshold 120 --enhance s_curve --enhan
 
 **Phase 2 Method (Recommended):**
 ```bash
-fabric-access image-to-piaf model-photo.jpg --preset photograph --verbose
+tactile image-to-piaf model-photo.jpg --preset photograph --verbose
 ```
 
 **Manual Method:**
 ```bash
-fabric-access image-to-piaf model-photo.jpg --threshold 110 --enhance clahe --verbose
+tactile image-to-piaf model-photo.jpg --threshold 110 --enhance clahe --verbose
 ```
 - CLAHE enhancement handles shadows and highlights
 - Lower threshold to capture details
@@ -721,12 +721,12 @@ fabric-access image-to-piaf model-photo.jpg --threshold 110 --enhance clahe --ve
 
 **Phase 2 Method (Recommended):**
 ```bash
-fabric-access image-to-piaf section.png --preset section --verbose
+tactile image-to-piaf section.png --preset section --verbose
 ```
 
 **Manual Method:**
 ```bash
-fabric-access image-to-piaf section.png --threshold 145 --verbose
+tactile image-to-piaf section.png --threshold 145 --verbose
 ```
 - Higher threshold reduces hatching density
 - Watch for density warnings on heavy hatching
@@ -736,10 +736,10 @@ fabric-access image-to-piaf section.png --threshold 145 --verbose
 **Phase 2 Enhancement:**
 ```bash
 # Use S-curve to boost contrast
-fabric-access image-to-piaf faint-scan.jpg --enhance s_curve --enhance-strength 1.5 --verbose
+tactile image-to-piaf faint-scan.jpg --enhance s_curve --enhance-strength 1.5 --verbose
 
 # Or use auto-contrast for scans with narrow tonal range
-fabric-access image-to-piaf scan.jpg --enhance auto_contrast --verbose
+tactile image-to-piaf scan.jpg --enhance auto_contrast --verbose
 ```
 
 This makes faint lines more visible without manually editing the image.
@@ -825,7 +825,7 @@ pip install liblouis
 source venv/bin/activate
 
 # Detect text and convert to Braille
-fabric-access image-to-piaf floor-plan.jpg --detect-text --verbose
+tactile image-to-piaf floor-plan.jpg --detect-text --verbose
 ```
 
 **What you'll see:**
@@ -845,10 +845,10 @@ Grade 2 Braille is contracted (shorter), while Grade 1 is uncontracted (letter-b
 
 ```bash
 # Grade 1 (default - uncontracted)
-fabric-access image-to-piaf plan.jpg --detect-text --braille-grade 1 --verbose
+tactile image-to-piaf plan.jpg --detect-text --braille-grade 1 --verbose
 
 # Grade 2 (contracted - more compact)
-fabric-access image-to-piaf plan.jpg --detect-text --braille-grade 2 --verbose
+tactile image-to-piaf plan.jpg --detect-text --braille-grade 2 --verbose
 ```
 
 ### Combined Usage Examples
@@ -857,23 +857,23 @@ fabric-access image-to-piaf plan.jpg --detect-text --braille-grade 2 --verbose
 
 ```bash
 # Floor plan with text detection
-fabric-access image-to-piaf floor-plan.jpg --detect-text --preset floor_plan --verbose
+tactile image-to-piaf floor-plan.jpg --detect-text --preset floor_plan --verbose
 
 # Sketch with text detection
-fabric-access image-to-piaf sketch.png --detect-text --preset sketch --verbose
+tactile image-to-piaf sketch.png --detect-text --preset sketch --verbose
 ```
 
 #### Text Detection with Other Features
 
 ```bash
 # With automatic density reduction
-fabric-access image-to-piaf dense-plan.jpg --detect-text --auto-reduce-density --verbose
+tactile image-to-piaf dense-plan.jpg --detect-text --auto-reduce-density --verbose
 
 # With tiling for large images
-fabric-access image-to-piaf large-drawing.jpg --detect-text --enable-tiling --verbose
+tactile image-to-piaf large-drawing.jpg --detect-text --enable-tiling --verbose
 
 # All features combined
-fabric-access image-to-piaf complex-plan.jpg \
+tactile image-to-piaf complex-plan.jpg \
   --detect-text \
   --braille-grade 2 \
   --preset floor_plan \
@@ -888,13 +888,13 @@ Process entire folders with text detection:
 
 ```bash
 # Detect text on all floor plans
-fabric-access batch ./plans ./output --detect-text --preset floor_plan --verbose
+tactile batch ./plans ./output --detect-text --preset floor_plan --verbose
 
 # With Grade 2 Braille
-fabric-access batch ./drawings ./output --detect-text --braille-grade 2 --verbose
+tactile batch ./drawings ./output --detect-text --braille-grade 2 --verbose
 
 # Recursive processing with text detection
-fabric-access batch ./project ./output --detect-text --recursive --preset floor_plan --verbose
+tactile batch ./project ./output --detect-text --recursive --preset floor_plan --verbose
 ```
 
 ### Understanding Text Detection Output
@@ -918,7 +918,7 @@ This tells you:
 source venv/bin/activate
 
 # 2. Process floor plan with text detection
-fabric-access image-to-piaf my-floor-plan.jpg --detect-text --preset floor_plan --verbose
+tactile image-to-piaf my-floor-plan.jpg --detect-text --preset floor_plan --verbose
 
 # 3. Review the output
 # The PDF will have:
@@ -937,7 +937,7 @@ fabric-access image-to-piaf my-floor-plan.jpg --detect-text --preset floor_plan 
 source venv/bin/activate
 
 # Process all plans with text detection
-fabric-access batch ./semester-project/plans ./output \
+tactile batch ./semester-project/plans ./output \
   --detect-text \
   --preset floor_plan \
   --recursive \
@@ -954,14 +954,14 @@ fabric-access batch ./semester-project/plans ./output \
 #### For Hand-Drawn Sketches
 - Use enhancement to improve text clarity:
   ```bash
-  fabric-access image-to-piaf sketch.jpg --detect-text --enhance s_curve --enhance-strength 1.3 --verbose
+  tactile image-to-piaf sketch.jpg --detect-text --enhance s_curve --enhance-strength 1.3 --verbose
   ```
 
 #### For Scanned Documents
 - Higher resolution scans improve text detection accuracy
 - Use auto-contrast enhancement:
   ```bash
-  fabric-access image-to-piaf scan.jpg --detect-text --enhance auto_contrast --verbose
+  tactile image-to-piaf scan.jpg --detect-text --enhance auto_contrast --verbose
   ```
 
 ### Troubleshooting Text Detection
@@ -979,7 +979,7 @@ fabric-access batch ./semester-project/plans ./output \
 tesseract --version
 
 # Try enhancing the image first
-fabric-access image-to-piaf plan.jpg --detect-text --enhance s_curve --enhance-strength 1.5 --verbose
+tactile image-to-piaf plan.jpg --detect-text --enhance s_curve --enhance-strength 1.5 --verbose
 ```
 
 #### Problem: Incorrect text detection
@@ -1012,7 +1012,7 @@ pip install liblouis
 
 Text detection and Braille settings can be customized in the configuration file:
 
-`src/fabric_access/data/tactile_standards.yaml`
+`src/tactile_core/data/tactile_standards.yaml`
 
 Key settings:
 ```yaml
@@ -1045,7 +1045,7 @@ The `(venv)` prefix will disappear from your prompt.
 ### Problem: Command not found
 
 ```
-bash: fabric-access: command not found
+bash: tactile: command not found
 ```
 
 **Solution:** Activate the virtual environment:
@@ -1085,9 +1085,9 @@ ls -ld .
 
 ### Within the tool:
 ```bash
-fabric-access --help                    # General help
-fabric-access image-to-piaf --help      # Command-specific help
-fabric-access info                      # Tool information
+tactile --help                    # General help
+tactile image-to-piaf --help      # Command-specific help
+tactile info                      # Tool information
 ```
 
 ### Documentation:
@@ -1104,80 +1104,80 @@ fabric-access info                      # Tool information
 source venv/bin/activate
 
 # Basic conversion
-fabric-access image-to-piaf IMAGE.jpg
+tactile image-to-piaf IMAGE.jpg
 
 # Verbose (see details)
-fabric-access image-to-piaf IMAGE.jpg --verbose
+tactile image-to-piaf IMAGE.jpg --verbose
 
 # Interactive (step-by-step)
-fabric-access image-to-piaf IMAGE.jpg --interactive
+tactile image-to-piaf IMAGE.jpg --interactive
 
 # Custom threshold
-fabric-access image-to-piaf IMAGE.jpg --threshold 140
+tactile image-to-piaf IMAGE.jpg --threshold 140
 
 # Custom output
-fabric-access image-to-piaf IMAGE.jpg --output result.pdf
+tactile image-to-piaf IMAGE.jpg --output result.pdf
 
 # Large paper
-fabric-access image-to-piaf IMAGE.jpg --paper-size tabloid
+tactile image-to-piaf IMAGE.jpg --paper-size tabloid
 
 # Combined
-fabric-access image-to-piaf IMAGE.jpg --threshold 140 --verbose --output result.pdf
+tactile image-to-piaf IMAGE.jpg --threshold 140 --verbose --output result.pdf
 ```
 
 ### Phase 2 Commands (Advanced - Recommended!)
 
 ```bash
 # List all available presets
-fabric-access list-presets
+tactile list-presets
 
 # Use a preset (EASIEST METHOD)
-fabric-access image-to-piaf IMAGE.jpg --preset floor_plan --verbose
-fabric-access image-to-piaf IMAGE.jpg --preset sketch --verbose
-fabric-access image-to-piaf IMAGE.jpg --preset photograph --verbose
+tactile image-to-piaf IMAGE.jpg --preset floor_plan --verbose
+tactile image-to-piaf IMAGE.jpg --preset sketch --verbose
+tactile image-to-piaf IMAGE.jpg --preset photograph --verbose
 
 # S-curve enhancement
-fabric-access image-to-piaf IMAGE.jpg --enhance s_curve --verbose
-fabric-access image-to-piaf IMAGE.jpg --enhance s_curve --enhance-strength 1.5 --verbose
+tactile image-to-piaf IMAGE.jpg --enhance s_curve --verbose
+tactile image-to-piaf IMAGE.jpg --enhance s_curve --enhance-strength 1.5 --verbose
 
 # Other enhancements
-fabric-access image-to-piaf IMAGE.jpg --enhance auto_contrast --verbose
-fabric-access image-to-piaf IMAGE.jpg --enhance clahe --verbose
-fabric-access image-to-piaf IMAGE.jpg --enhance histogram --verbose
+tactile image-to-piaf IMAGE.jpg --enhance auto_contrast --verbose
+tactile image-to-piaf IMAGE.jpg --enhance clahe --verbose
+tactile image-to-piaf IMAGE.jpg --enhance histogram --verbose
 
 # Batch processing (convert entire folder)
-fabric-access batch ./input-folder ./output-folder --preset floor_plan --verbose
+tactile batch ./input-folder ./output-folder --preset floor_plan --verbose
 
 # Batch with recursive subdirectories
-fabric-access batch ./project ./output --preset floor_plan --recursive --verbose
+tactile batch ./project ./output --preset floor_plan --recursive --verbose
 
 # Batch with custom settings
-fabric-access batch ./drawings ./output --threshold 140 --enhance s_curve --verbose
+tactile batch ./drawings ./output --threshold 140 --enhance s_curve --verbose
 
 # Batch with file filtering
-fabric-access batch ./images ./output --pattern "*.png,*.jpg" --preset sketch
+tactile batch ./images ./output --pattern "*.png,*.jpg" --preset sketch
 
 # Override preset settings
-fabric-access image-to-piaf IMAGE.jpg --preset floor_plan --threshold 150 --verbose
+tactile image-to-piaf IMAGE.jpg --preset floor_plan --threshold 150 --verbose
 ```
 
 ### Phase 3 Commands (Text Detection & Braille - NEW!)
 
 ```bash
 # Detect text and add Braille labels (Grade 1)
-fabric-access image-to-piaf floor-plan.jpg --detect-text --verbose
+tactile image-to-piaf floor-plan.jpg --detect-text --verbose
 
 # Use Grade 2 Braille (contracted)
-fabric-access image-to-piaf plan.png --detect-text --braille-grade 2 --verbose
+tactile image-to-piaf plan.png --detect-text --braille-grade 2 --verbose
 
 # Combined with presets
-fabric-access image-to-piaf drawing.jpg --detect-text --preset floor_plan --verbose
+tactile image-to-piaf drawing.jpg --detect-text --preset floor_plan --verbose
 
 # Combined with other features
-fabric-access image-to-piaf large-plan.jpg --detect-text --auto-reduce-density --enable-tiling
+tactile image-to-piaf large-plan.jpg --detect-text --auto-reduce-density --enable-tiling
 
 # Batch processing with text detection
-fabric-access batch ./plans ./output --detect-text --preset floor_plan --verbose
+tactile batch ./plans ./output --detect-text --preset floor_plan --verbose
 ```
 
 ### Environment Management

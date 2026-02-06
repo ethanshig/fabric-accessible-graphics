@@ -14,7 +14,7 @@ Successfully implemented a complete OCR-based text detection system for the Fabr
 ## Files Created
 
 ### 1. Core Module
-**File**: `/mnt/c/Users/ethan/fabric-accessible-graphics/src/fabric_access/core/text_detector.py`
+**File**: `/mnt/c/Users/ethan/fabric-accessible-graphics/src/tactile_core/core/text_detector.py`
 
 **Components**:
 - `TextDetectionError`: Custom exception for text detection errors
@@ -33,7 +33,7 @@ Successfully implemented a complete OCR-based text detection system for the Fabr
 **Lines of Code**: 285
 
 ### 2. Configuration
-**File**: `/mnt/c/Users/ethan/fabric-accessible-graphics/src/fabric_access/data/tactile_standards.yaml`
+**File**: `/mnt/c/Users/ethan/fabric-accessible-graphics/src/tactile_core/data/tactile_standards.yaml`
 
 **Added Section**:
 ```yaml
@@ -53,7 +53,7 @@ text_detection:
 ```
 
 ### 3. Integration
-**File**: `/mnt/c/Users/ethan/fabric-accessible-graphics/src/fabric_access/core/processor.py`
+**File**: `/mnt/c/Users/ethan/fabric-accessible-graphics/src/tactile_core/core/processor.py`
 
 **Modifications**:
 - Added text detector imports

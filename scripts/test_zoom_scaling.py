@@ -29,10 +29,10 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent / 'src'))
 
 from PIL import Image
-from fabric_access.core.processor import ImageProcessor
-from fabric_access.core.text_detector import DetectedText
-from fabric_access.config.standards_loader import StandardsLoader
-from fabric_access.mcp_server.tools import convert_to_tactile
+from tactile_core.core.processor import ImageProcessor
+from tactile_core.core.text_detector import DetectedText
+from tactile_core.config.standards_loader import StandardsLoader
+from tactile_core.mcp_server.tools import convert_to_tactile
 
 
 class SilentLogger:
@@ -394,7 +394,7 @@ def test_cli_zoom_region(image_path: str, output_dir: Path) -> TestResult:
 
         # Run CLI command
         cmd = [
-            sys.executable, '-m', 'fabric_access.cli',
+            sys.executable, '-m', 'tactile_core.cli',
             'image-to-piaf',
             str(image_path),
             '--output', str(output_path),

@@ -206,7 +206,7 @@ pip install git+https://github.com/liblouis/liblouis.git
 Detect text and add Grade 1 Braille labels:
 
 ```bash
-fabric-access image-to-piaf floor-plan.jpg --detect-text --verbose
+tactile image-to-piaf floor-plan.jpg --detect-text --verbose
 ```
 
 **Output:**
@@ -225,7 +225,7 @@ Adding 11 Braille labels to PDF
 For contracted Braille:
 
 ```bash
-fabric-access image-to-piaf floor-plan.jpg --detect-text --braille-grade 2 --verbose
+tactile image-to-piaf floor-plan.jpg --detect-text --braille-grade 2 --verbose
 ```
 
 ### Batch Processing
@@ -233,23 +233,23 @@ fabric-access image-to-piaf floor-plan.jpg --detect-text --braille-grade 2 --ver
 Process multiple files with text detection:
 
 ```bash
-fabric-access batch ./plans ./output --detect-text --preset floor_plan --verbose
+tactile batch ./plans ./output --detect-text --preset floor_plan --verbose
 ```
 
 ### Combined with Other Features
 
 ```bash
 # With automatic density reduction
-fabric-access image-to-piaf plan.jpg --detect-text --auto-reduce-density --verbose
+tactile image-to-piaf plan.jpg --detect-text --auto-reduce-density --verbose
 
 # With tiling for large images
-fabric-access image-to-piaf large-plan.jpg --detect-text --enable-tiling --verbose
+tactile image-to-piaf large-plan.jpg --detect-text --enable-tiling --verbose
 
 # With presets
-fabric-access image-to-piaf drawing.jpg --detect-text --preset floor_plan --verbose
+tactile image-to-piaf drawing.jpg --detect-text --preset floor_plan --verbose
 
 # All features
-fabric-access image-to-piaf complex-plan.jpg \
+tactile image-to-piaf complex-plan.jpg \
   --detect-text \
   --braille-grade 2 \
   --preset floor_plan \
@@ -285,7 +285,7 @@ fabric-access image-to-piaf complex-plan.jpg \
 
 ### Configuration File Settings
 
-Advanced settings in `src/fabric_access/data/tactile_standards.yaml`:
+Advanced settings in `lib/tactile-core/src/tactile_core/data/tactile_standards.yaml`:
 
 #### Text Detection Settings
 
@@ -370,7 +370,7 @@ For floor plans with dimensions and room labels:
 
 ```bash
 # 1. Process with text detection and optimal settings
-fabric-access image-to-piaf floor-plan.jpg \
+tactile image-to-piaf floor-plan.jpg \
   --detect-text \
   --preset floor_plan \
   --auto-reduce-density \
@@ -387,7 +387,7 @@ For entire project folders:
 
 ```bash
 # Process all architectural drawings with text detection
-fabric-access batch ./project-drawings ./output \
+tactile batch ./project-drawings ./output \
   --detect-text \
   --braille-grade 1 \
   --preset floor_plan \
@@ -402,7 +402,7 @@ For challenging images:
 
 **Low Contrast Images:**
 ```bash
-fabric-access image-to-piaf faint-scan.jpg \
+tactile image-to-piaf faint-scan.jpg \
   --detect-text \
   --enhance s_curve \
   --enhance-strength 1.5 \
@@ -411,7 +411,7 @@ fabric-access image-to-piaf faint-scan.jpg \
 
 **Scanned Documents:**
 ```bash
-fabric-access image-to-piaf scan.jpg \
+tactile image-to-piaf scan.jpg \
   --detect-text \
   --enhance auto_contrast \
   --verbose
@@ -419,7 +419,7 @@ fabric-access image-to-piaf scan.jpg \
 
 **Hand-Drawn Sketches:**
 ```bash
-fabric-access image-to-piaf sketch.jpg \
+tactile image-to-piaf sketch.jpg \
   --detect-text \
   --enhance s_curve \
   --enhance-strength 1.3 \
@@ -433,13 +433,13 @@ Compare Grade 1 vs Grade 2:
 
 ```bash
 # Grade 1 (uncontracted)
-fabric-access image-to-piaf plan.jpg \
+tactile image-to-piaf plan.jpg \
   --detect-text \
   --braille-grade 1 \
   --output plan-grade1.pdf
 
 # Grade 2 (contracted)
-fabric-access image-to-piaf plan.jpg \
+tactile image-to-piaf plan.jpg \
   --detect-text \
   --braille-grade 2 \
   --output plan-grade2.pdf
@@ -476,7 +476,7 @@ No text detected
    - Text should be clearly visible
    - Try enhancing the image:
      ```bash
-     fabric-access image-to-piaf plan.jpg \
+     tactile image-to-piaf plan.jpg \
        --detect-text \
        --enhance s_curve \
        --enhance-strength 1.5 \
@@ -511,7 +511,7 @@ No text detected
 
 1. **Improve Image Quality:**
    ```bash
-   fabric-access image-to-piaf plan.jpg \
+   tactile image-to-piaf plan.jpg \
      --detect-text \
      --enhance auto_contrast \
      --verbose
@@ -669,10 +669,10 @@ Overlap detected for label at (120, 340): 10'-6"
 4. **Test and Iterate:**
    ```bash
    # First attempt
-   fabric-access image-to-piaf plan.jpg --detect-text --verbose
+   tactile image-to-piaf plan.jpg --detect-text --verbose
 
    # If needed, enhance
-   fabric-access image-to-piaf plan.jpg \
+   tactile image-to-piaf plan.jpg \
      --detect-text \
      --enhance s_curve \
      --enhance-strength 1.3 \
@@ -705,7 +705,7 @@ Overlap detected for label at (120, 340): 10'-6"
 
 1. **Start Simple:**
    ```bash
-   fabric-access image-to-piaf plan.jpg --detect-text --verbose
+   tactile image-to-piaf plan.jpg --detect-text --verbose
    ```
 
 2. **Review Output:**
@@ -721,7 +721,7 @@ Overlap detected for label at (120, 340): 10'-6"
 4. **Batch Process:**
    Once settings are optimized:
    ```bash
-   fabric-access batch ./all-plans ./output \
+   tactile batch ./all-plans ./output \
      --detect-text \
      --preset floor_plan \
      --recursive \
@@ -758,7 +758,7 @@ For these cases, use the standard conversion without `--detect-text`.
 
 # Use batch processing for multiple files
 # More efficient than processing individually
-fabric-access batch ./plans ./output --detect-text --verbose
+tactile batch ./plans ./output --detect-text --verbose
 ```
 
 ## Additional Resources

@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "mcp__tactile__image_to_piaf",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun ${CLAUDE_PROJECT_DIR}/src/hooks/ConversionTracker.ts"
+          }
+        ]
+      }
+    ]
+  },
+  "env": {
+    "RADICAL_ACCESSIBILITY_MEMORY_DIR": "${HOME}/.radical-accessibility/memory"
+  }
+}

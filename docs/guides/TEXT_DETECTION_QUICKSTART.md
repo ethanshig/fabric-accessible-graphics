@@ -51,9 +51,9 @@ python demo_text_detection.py path/to/image.jpg
 ## Basic Usage (Python)
 
 ```python
-from fabric_access.core.processor import ImageProcessor
-from fabric_access.config.standards_loader import StandardsLoader
-from fabric_access.utils.logger import AccessibleLogger
+from tactile_core.core.processor import ImageProcessor
+from tactile_core.config.standards_loader import StandardsLoader
+from tactile_core.utils.logger import AccessibleLogger
 
 # Setup
 loader = StandardsLoader()
@@ -82,7 +82,7 @@ for dt in dimensions:
 
 ## Configuration (Optional)
 
-Edit `src/fabric_access/data/tactile_standards.yaml`:
+Edit `src/tactile_core/data/tactile_standards.yaml`:
 
 ```yaml
 text_detection:
@@ -142,7 +142,7 @@ For faster processing, consider downsampling large images.
 
 | File | Purpose |
 |------|---------|
-| `src/fabric_access/core/text_detector.py` | Main OCR module |
+| `src/tactile_core/core/text_detector.py` | Main OCR module |
 | `test_text_detection.py` | Test suite |
 | `demo_text_detection.py` | Demo script |
 | `TEXT_DETECTION_README.md` | Full documentation |

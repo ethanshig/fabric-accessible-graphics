@@ -43,8 +43,8 @@ This toolkit needs to run in **WSL (Windows Subsystem for Linux)**, not PowerShe
    Activating virtual environment...
 
    Environment activated! You can now use:
-     fabric-access info
-     fabric-access image-to-piaf [IMAGE]
+     tactile info
+     tactile image-to-piaf [IMAGE]
 
    To deactivate when done, type: deactivate
    ```
@@ -53,13 +53,13 @@ This toolkit needs to run in **WSL (Windows Subsystem for Linux)**, not PowerShe
 
 ```bash
 # See what it does
-fabric-access info
+tactile info
 
 # Convert an image
-fabric-access image-to-piaf my-image.jpg --verbose
+tactile image-to-piaf my-image.jpg --verbose
 
 # Get help
-fabric-access --help
+tactile --help
 ```
 
 ## Common Questions
@@ -108,5 +108,5 @@ Once you're in WSL with the environment activated, read:
 
 Or just try it:
 ```bash
-fabric-access info
+tactile info
 ```

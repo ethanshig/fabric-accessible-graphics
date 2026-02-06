@@ -28,8 +28,8 @@ from reportlab.lib.utils import ImageReader
 import io
 
 # Import Braille converter from the project
-from fabric_access.core.braille_converter import BrailleConverter, BrailleConfig
-from fabric_access.utils.logger import AccessibleLogger
+from tactile_core.core.braille_converter import BrailleConverter, BrailleConfig
+from tactile_core.utils.logger import AccessibleLogger
 
 
 # Constants

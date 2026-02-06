@@ -21,11 +21,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent / 'src'))
 
 from PIL import Image
-from fabric_access.core.text_detector import TextDetector, TextDetectionConfig, DetectedText
-from fabric_access.core.braille_converter import BrailleConverter, BrailleConfig
-from fabric_access.core.processor import ImageProcessor
-from fabric_access.core.pdf_generator import PIAFPDFGenerator
-from fabric_access.config.standards_loader import StandardsLoader
+from tactile_core.core.text_detector import TextDetector, TextDetectionConfig, DetectedText
+from tactile_core.core.braille_converter import BrailleConverter, BrailleConfig
+from tactile_core.core.processor import ImageProcessor
+from tactile_core.core.pdf_generator import PIAFPDFGenerator
+from tactile_core.config.standards_loader import StandardsLoader
 
 
 class SilentLogger:

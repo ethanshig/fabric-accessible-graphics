@@ -1,10 +1,10 @@
 # MCP Server Setup Guide
 
-This guide explains how to set up the fabric-access MCP server so Claude can convert architectural images to tactile graphics automatically.
+This guide explains how to set up the tactile MCP server so Claude can convert architectural images to tactile graphics automatically.
 
 ## What is MCP?
 
-MCP (Model Context Protocol) allows Claude to interact with local tools on your computer. With the fabric-access MCP server, you can simply tell Claude "convert this floor plan to tactile" and Claude will handle all the processing automatically.
+MCP (Model Context Protocol) allows Claude to interact with local tools on your computer. With the tactile MCP server, you can simply tell Claude "convert this floor plan to tactile" and Claude will handle all the processing automatically.
 
 ## Prerequisites
 
@@ -19,7 +19,7 @@ The MCP server is installed automatically with the toolkit. Verify it's availabl
 ```bash
 cd /mnt/c/Users/ethan/fabric-accessible-graphics
 source venv/bin/activate
-which fabric-access-mcp
+which tactile-mcp
 ```
 
 ## Configuration
@@ -31,8 +31,8 @@ Add this to your Claude Code MCP settings (typically in `~/.config/claude-code/s
 ```json
 {
   "mcpServers": {
-    "fabric-access": {
-      "command": "/mnt/c/Users/ethan/fabric-accessible-graphics/venv/bin/fabric-access-mcp",
+    "tactile": {
+      "command": "/mnt/c/Users/ethan/fabric-accessible-graphics/venv/bin/tactile-mcp",
       "args": []
     }
   }
@@ -44,9 +44,9 @@ Or using Python directly:
 ```json
 {
   "mcpServers": {
-    "fabric-access": {
+    "tactile": {
       "command": "/mnt/c/Users/ethan/fabric-accessible-graphics/venv/bin/python",
-      "args": ["-m", "fabric_access.mcp_server.server"]
+      "args": ["-m", "tactile_core.mcp_server.server"]
     }
   }
 }
@@ -59,8 +59,8 @@ For Claude Desktop, add to `~/.config/Claude/claude_desktop_config.json`:
 ```json
 {
   "mcpServers": {
-    "fabric-access": {
-      "command": "/mnt/c/Users/ethan/fabric-accessible-graphics/venv/bin/fabric-access-mcp"
+    "tactile": {
+      "command": "/mnt/c/Users/ethan/fabric-accessible-graphics/venv/bin/tactile-mcp"
     }
   }
 }
@@ -70,7 +70,7 @@ For Claude Desktop, add to `~/.config/Claude/claude_desktop_config.json`:
 
 After configuration, Claude has access to these tools:
 
-### convert_to_tactile
+### image_to_piaf
 
 Convert an image to PIAF-ready PDF.
 
@@ -156,7 +156,7 @@ Generate a detailed architectural description of an image for accessibility. Use
 
 **Claude:** I'll convert that floor plan for you.
 
-*[Uses convert_to_tactile tool]*
+*[Uses image_to_piaf tool]*
 
 Converted successfully. Output saved to floor-plan_piaf.pdf. Added 12 Braille labels for detected text. Density 28% - optimal for PIAF printing. Ready to print!
 
@@ -166,7 +166,7 @@ Converted successfully. Output saved to floor-plan_piaf.pdf. Added 12 Braille la
 
 **Claude:** I'll use the section preset which is optimized for structural drawings.
 
-*[Uses convert_to_tactile with preset="section"]*
+*[Uses image_to_piaf with preset="section"]*
 
 Done! Converted using the 'section' preset. Output: section_piaf.pdf. 8 dimension labels converted to Grade 2 Braille. Ready for PIAF.
 
@@ -208,7 +208,7 @@ The composition centers on a rectangular frame approximately three stories tall,
 
 **Claude:** I'll identify the kitchen region and zoom to it.
 
-*[Uses convert_to_tactile with zoom_to="kitchen"]*
+*[Uses image_to_piaf with zoom_to="kitchen"]*
 
 I found the kitchen in the upper-right area of the floor plan. Zoomed in and scaled to fill the page. Output: plan_kitchen_piaf.pdf. 4 Braille labels added for the zoomed region. Ready for PIAF!
 
@@ -218,7 +218,7 @@ I found the kitchen in the upper-right area of the floor plan. Zoomed in and sca
 
 **Claude:** I'll identify all bedrooms and create a multi-page PDF.
 
-*[Uses convert_to_tactile with zoom_regions for each bedroom]*
+*[Uses image_to_piaf with zoom_regions for each bedroom]*
 
 Created a 3-page PDF:
 - Page 1: Bedroom 1 (master, upper-left)
@@ -243,7 +243,7 @@ pip install -e .
 
 1. Restart Claude Code/Desktop after changing MCP configuration
 2. Check the server path is correct
-3. Verify the server can start: `fabric-access-mcp`
+3. Verify the server can start: `tactile-mcp`
 
 ### Conversion fails
 
@@ -271,8 +271,8 @@ Or add it to the MCP server configuration:
 ```json
 {
   "mcpServers": {
-    "fabric-access": {
-      "command": "/mnt/c/Users/ethan/fabric-accessible-graphics/venv/bin/fabric-access-mcp",
+    "tactile": {
+      "command": "/mnt/c/Users/ethan/fabric-accessible-graphics/venv/bin/tactile-mcp",
       "env": {
         "ANTHROPIC_API_KEY": "your-api-key-here"
       }

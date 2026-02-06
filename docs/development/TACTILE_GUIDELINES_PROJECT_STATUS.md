@@ -42,9 +42,9 @@ Added to Image-to-PIAF tool:
 - Format: Line 1 = Braille, Line 2 = Print text
 
 Files modified:
-- `src/fabric_access/core/braille_converter.py` - SymbolKeyEntry, _get_next_symbol(), modified create_braille_labels()
-- `src/fabric_access/core/pdf_generator.py` - add_key_page(), updated generate()
-- `src/fabric_access/cli.py` - Handle tuple return, pass to PDF generator
+- `src/tactile_core/core/braille_converter.py` - SymbolKeyEntry, _get_next_symbol(), modified create_braille_labels()
+- `src/tactile_core/core/pdf_generator.py` - add_key_page(), updated generate()
+- `src/tactile_core/cli.py` - Handle tuple return, pass to PDF generator
 
 ### 2. Main Guidelines Document
 **Location**: `/patterns/ARCHITECTURAL_TACTILE_GUIDELINES.md`
@@ -151,7 +151,7 @@ cd /mnt/c/Users/ethan/fabric-accessible-graphics
 source venv/bin/activate
 
 # Process ANNEX floor plan
-fabric-access image-to-piaf ANNEX-PLANS-OFFICIAL_Page_1.jpg \
+tactile image-to-piaf ANNEX-PLANS-OFFICIAL_Page_1.jpg \
   --preset floor_plan \
   --detect-text \
   --braille-grade 2 \
@@ -182,7 +182,7 @@ Main document is at `/patterns/ARCHITECTURAL_TACTILE_GUIDELINES.md`
 ## Notes
 
 - Image-Description-Machine pattern exists at `/patterns/image_description_machine/`
-- Image-to-PIAF is the CLI tool: `fabric-access image-to-piaf`
+- Image-to-PIAF is the CLI tool: `tactile image-to-piaf`
 - Student prefers self-sufficiency - minimize need for sighted assistance
 - All prints should be at original scale unless specified
 - Both 8.5x11 (letter) and 11x17 (tabloid) paper available

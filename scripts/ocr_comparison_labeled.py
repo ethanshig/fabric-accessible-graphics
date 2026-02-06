@@ -17,7 +17,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent / 'src'))
 
 from PIL import Image, ImageDraw, ImageFont
-from fabric_access.core.text_detector import TextDetector, TextDetectionConfig
+from tactile_core.core.text_detector import TextDetector, TextDetectionConfig
 
 
 def get_font(size=20):
@@ -137,7 +137,7 @@ def create_legend(detections: list, output_path: str, title: str):
 
 def run_tesseract(image_path: str):
     """Run Tesseract OCR."""
-    from fabric_access.utils.logger import AccessibleLogger
+    from tactile_core.utils.logger import AccessibleLogger
 
     config = TextDetectionConfig(
         enabled=True, language='eng', page_segmentation_mode=3,

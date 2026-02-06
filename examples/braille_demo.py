@@ -15,14 +15,14 @@ from pathlib import Path
 src_path = Path(__file__).parent.parent / "src"
 sys.path.insert(0, str(src_path))
 
-from fabric_access.core.braille_converter import (
+from tactile_core.core.braille_converter import (
     BrailleConverter,
     BrailleConfig,
     DetectedText
 )
-from fabric_access.core.pdf_generator import PIAFPDFGenerator
-from fabric_access.utils.logger import AccessibleLogger
-from fabric_access.config.standards_loader import load_standards
+from tactile_core.core.pdf_generator import PIAFPDFGenerator
+from tactile_core.utils.logger import AccessibleLogger
+from tactile_core.config.standards_loader import load_standards
 from PIL import Image, ImageDraw, ImageFont
 
 
@@ -287,8 +287,8 @@ def main():
         print("  - PDF integration with Braille labels")
         print("  - YAML configuration support")
         print("\nFor more information, see:")
-        print("  - src/fabric_access/core/braille_converter.py")
-        print("  - src/fabric_access/data/tactile_standards.yaml")
+        print("  - src/tactile_core/core/braille_converter.py")
+        print("  - src/tactile_core/data/tactile_standards.yaml")
 
         return 0
 

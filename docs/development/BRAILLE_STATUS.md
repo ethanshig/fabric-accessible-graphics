@@ -30,13 +30,13 @@ The Dimensions to Braille conversion feature is **complete and working**. Text a
 
 ```bash
 # Basic usage
-fabric-access image-to-piaf floor-plan.jpg --detect-text --verbose
+tactile image-to-piaf floor-plan.jpg --detect-text --verbose
 
 # Grade 2 Braille (contracted)
-fabric-access image-to-piaf plan.jpg --detect-text --braille-grade 2
+tactile image-to-piaf plan.jpg --detect-text --braille-grade 2
 
 # With tiling for large images
-fabric-access image-to-piaf large.jpg --detect-text --enable-tiling --paper-size tabloid
+tactile image-to-piaf large.jpg --detect-text --enable-tiling --paper-size tabloid
 ```
 
 ## Recent Fixes (Jan 7, 2026)
@@ -63,11 +63,11 @@ fabric-access image-to-piaf large.jpg --detect-text --enable-tiling --paper-size
    - `KeyEntry` dataclass in `braille_converter.py`
 
 **Files Modified:**
-- `src/fabric_access/core/label_scaler.py` (NEW)
-- `src/fabric_access/core/processor.py` - Added `scale_image()`, `scale_detected_texts()`
-- `src/fabric_access/core/braille_converter.py` - Added `KeyEntry`, key generation
-- `src/fabric_access/core/pdf_generator.py` - Added `add_abbreviation_key_page()`
-- `src/fabric_access/mcp_server/tools.py` - New parameters and scaling logic
+- `src/tactile_core/core/label_scaler.py` (NEW)
+- `src/tactile_core/core/processor.py` - Added `scale_image()`, `scale_detected_texts()`
+- `src/tactile_core/core/braille_converter.py` - Added `KeyEntry`, key generation
+- `src/tactile_core/core/pdf_generator.py` - Added `add_abbreviation_key_page()`
+- `src/tactile_core/mcp_server/tools.py` - New parameters and scaling logic
 
 **New MCP Parameters:**
 ```python
@@ -131,7 +131,7 @@ ln -s /usr/lib/python3/dist-packages/louis venv/lib/python3.12/site-packages/lou
 2. Font name mismatch ("DejaVuSans" vs "DejaVu Sans")
 3. `c.getpdfdata().info` call caused font embedding conflict
 
-**Solution:** Modified `src/fabric_access/core/pdf_generator.py`
+**Solution:** Modified `src/tactile_core/core/pdf_generator.py`
 - Added `_register_braille_font()` method
 - Registers DejaVu Sans TrueType font in `__init__`
 - Fixed font name to match config
@@ -212,7 +212,7 @@ PDF with Braille Labels
 
 ## Configuration
 
-**File:** `src/fabric_access/data/tactile_standards.yaml`
+**File:** `src/tactile_core/data/tactile_standards.yaml`
 
 ```yaml
 braille:
@@ -248,12 +248,12 @@ braille:
 ## Key Files
 
 ### Modified Files
-1. `src/fabric_access/core/pdf_generator.py`
+1. `src/tactile_core/core/pdf_generator.py`
    - Added `_register_braille_font()` method
    - Registers DejaVu Sans for Unicode Braille
    - Fixed font embedding issue
 
-2. `src/fabric_access/core/braille_converter.py`
+2. `src/tactile_core/core/braille_converter.py`
    - Uses liblouis.translate() with dotsIO | ucBrl mode
    - Outputs proper Unicode Braille (U+2800-U+28FF)
    - Fallback converter for systems without liblouis
@@ -343,13 +343,13 @@ python -c "import louis; print(louis.version())"
 python tests/test_braille_conversion.py
 
 # Test with real image
-fabric-access image-to-piaf ANNEX-PLANS-OFFICIAL_Page_1.jpg \
+tactile image-to-piaf ANNEX-PLANS-OFFICIAL_Page_1.jpg \
   --detect-text --braille-grade 2 --threshold 140 --verbose
 
 # Verify font registration
 python -c "from reportlab.pdfbase import pdfmetrics; \
-  from fabric_access.core.pdf_generator import PIAFPDFGenerator; \
-  from fabric_access.utils.logger import AccessibleLogger; \
+  from tactile_core.core.pdf_generator import PIAFPDFGenerator; \
+  from tactile_core.utils.logger import AccessibleLogger; \
   gen = PIAFPDFGenerator(AccessibleLogger()); \
   print('Registered fonts:', pdfmetrics.getRegisteredFontNames())"
 ```

@@ -6,25 +6,81 @@ Quick-lookup reference for all CLI commands and MCP tools. For tutorials and wor
 
 ---
 
-## Quick Start
+## Jump To
 
-```bash
-# Most common usage:
-fabric-access image-to-piaf floor-plan.jpg --preset floor_plan --detect-text --verbose
-```
+### CLI Commands
+- [image-to-piaf command](#cli-image-to-piaf) - Convert single image
+- [batch command](#cli-batch) - Convert multiple images
+- [list-presets command](#cli-list-presets) - Show available presets
+- [info command](#cli-info) - Toolkit information
+
+### CLI Option Groups
+- [Basic options](#cli-basic) - Output, threshold, paper size, preset
+- [Enhancement options](#cli-enhancement) - Contrast enhancement methods
+- [Text and Braille options](#cli-braille) - OCR detection, Braille grade
+- [Scaling options](#cli-scaling) - Auto-scale, manual scale, scale cap
+- [Abbreviation key options](#cli-abbreviation) - Label abbreviation settings
+- [Zoom options](#cli-zoom) - Region zoom
+- [Tiling options](#cli-tiling) - Large image splitting
+- [Density options](#cli-density) - Auto-reduce density
+- [Sticker workflow options](#cli-sticker) - Dual-PDF output for Braille stickers
+
+### MCP Tools
+- [image_to_piaf tool](#mcp-image-to-piaf) - Convert via Claude
+- [list_presets tool](#mcp-list-presets) - List presets via Claude
+- [analyze_image tool](#mcp-analyze) - Pre-flight analysis
+- [describe_image tool](#mcp-describe) - Accessibility description
+- [extract_text_with_vision tool](#mcp-extract-text) - Vision-based OCR
+- [assess_tactile_quality tool](#mcp-quality) - Quality assessment
+
+### Reference Tables
+- [Preset reference](#ref-presets) - All presets with settings
+- [Common tasks](#ref-tasks) - Quick command examples
+- [Supported formats](#ref-formats) - Input and output formats
+- [Paper sizes](#ref-paper) - Dimensions and pixels
+
+---
+
+## Most Common Options Summary
+
+**Convert with Braille labels:**
+`tactile image-to-piaf plan.jpg --detect-text --braille-grade 2 --verbose`
+
+**Use a preset:**
+`--preset floor_plan` (or: sketch, photograph, section, elevation, site_plan)
+
+**Zoom to a region:**
+`--zoom-region 25,30,50,40` (x%, y%, width%, height%)
+
+**Scale image manually:**
+`--scale-percent 150` (150% enlargement)
+
+**Cap auto-scaling:**
+`--max-scale-factor 2.0` (max 200%)
+
+**Force all labels abbreviated:**
+`--force-abbreviation-key`
+
+**Sticker workflow (dual PDFs):**
+`--sticker-workflow` (generates `*_piaf.pdf` + `*_text.pdf`)
+
+**Batch convert folder:**
+`tactile batch ./input ./output --preset floor_plan --detect-text`
 
 ---
 
 # PART 1: CLI Commands
 
-## `fabric-access image-to-piaf`
+<a id="cli-image-to-piaf"></a>
+## `tactile image-to-piaf`
 
 Convert an image to PIAF-ready PDF.
 
 ```bash
-fabric-access image-to-piaf INPUT_PATH [OPTIONS]
+tactile image-to-piaf INPUT_PATH [OPTIONS]
 ```
 
+<a id="cli-basic"></a>
 ### Basic Options
 
 | Option | Type | Default | Description |
@@ -38,6 +94,7 @@ fabric-access image-to-piaf INPUT_PATH [OPTIONS]
 | `--interactive, -i` | flag | false | Step-by-step prompts |
 | `--config` | path | none | Custom config file path |
 
+<a id="cli-enhancement"></a>
 ### Enhancement Options
 
 | Option | Type | Default | Description |
@@ -45,6 +102,7 @@ fabric-access image-to-piaf INPUT_PATH [OPTIONS]
 | `--enhance, -e` | choice | none | `s_curve`, `auto_contrast`, `clahe`, `histogram` |
 | `--enhance-strength` | float | 1.0 | S-curve strength (0.0-2.0) |
 
+<a id="cli-braille"></a>
 ### Text & Braille Options
 
 | Option | Type | Default | Description |
@@ -53,12 +111,31 @@ fabric-access image-to-piaf INPUT_PATH [OPTIONS]
 | `--braille-grade` | choice | 1 | `1` (uncontracted) or `2` (contracted) |
 | `--braille-placement` | choice | overlay | `overlay` or `margin` |
 
+<a id="cli-scaling"></a>
+### Scaling Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `--scale-percent` | float | none | Manual zoom/scale percentage (100=no change, 200=2x) |
+| `--auto-scale/--no-auto-scale` | flag | true | Auto-scale so Braille labels fit in original text boxes |
+| `--max-scale-factor` | float | none | Cap on auto-scale (e.g., 2.0 = 200% max) |
+
+<a id="cli-abbreviation"></a>
+### Abbreviation Key Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `--abbreviation-key/--no-abbreviation-key` | flag | true | Auto-abbreviate labels that don't fit |
+| `--force-abbreviation-key` | flag | false | Abbreviate ALL labels with comprehensive key |
+
+<a id="cli-zoom"></a>
 ### Zoom Options
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `--zoom-region` | string | none | Region: `x%,y%,w%,h%` (e.g., `25,30,50,40`) |
 
+<a id="cli-tiling"></a>
 ### Tiling Options
 
 | Option | Type | Default | Description |
@@ -67,6 +144,7 @@ fabric-access image-to-piaf INPUT_PATH [OPTIONS]
 | `--tile-overlap` | float | 0.0 | Overlap between tiles (0.0-1.0) |
 | `--no-registration-marks` | flag | false | Disable alignment marks |
 
+<a id="cli-density"></a>
 ### Density Options
 
 | Option | Type | Default | Description |
@@ -75,27 +153,65 @@ fabric-access image-to-piaf INPUT_PATH [OPTIONS]
 | `--target-density` | float | 0.30 | Target density (0.0-1.0) |
 | `--max-reduction-iterations` | int | 10 | Max erosion passes |
 
+<a id="cli-sticker"></a>
+### Sticker Workflow Options
+
+Generate dual PDFs for Braille sticker application workflow.
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `--sticker-workflow` | flag | false | Generate dual PDFs for sticker workflow |
+
+**Outputs:**
+- `*_piaf.pdf` - Image with counter-highlighted text areas (no Braille), for PIAF swelling
+- `*_text.pdf` - Text-only at original positions, for second print pass
+
+**Workflow:**
+1. Print PIAF PDF and swell on PIAF machine
+2. Reload swelled paper (align bottom-right registration mark)
+3. Print text PDF on same paper
+4. Apply clear Braille stickers over printed text
+
+**Note:** Automatically enables `--detect-text` if not specified.
+
 ### Examples
 
 ```bash
 # Basic with preset
-fabric-access image-to-piaf plan.jpg --preset floor_plan --verbose
+tactile image-to-piaf plan.jpg --preset floor_plan --verbose
 
 # With Braille labels (Grade 2)
-fabric-access image-to-piaf plan.jpg --detect-text --braille-grade 2 --verbose
+tactile image-to-piaf plan.jpg --detect-text --braille-grade 2 --verbose
 
 # Zoom to a region (25% from left, 30% from top, 50% wide, 40% tall)
-fabric-access image-to-piaf plan.jpg --zoom-region 25,30,50,40 --verbose
+tactile image-to-piaf plan.jpg --zoom-region 25,30,50,40 --verbose
+
+# Manual scaling (150%)
+tactile image-to-piaf plan.jpg --scale-percent 150 --detect-text --verbose
+
+# Auto-scale with cap (max 200%)
+tactile image-to-piaf plan.jpg --detect-text --max-scale-factor 2.0 --verbose
+
+# Force abbreviation key for all labels (useful for dense drawings)
+tactile image-to-piaf dense-plan.jpg --detect-text --force-abbreviation-key --verbose
+
+# Disable auto-scaling
+tactile image-to-piaf plan.jpg --detect-text --no-auto-scale --verbose
+
+# Sticker workflow (generates two PDFs: *_piaf.pdf and *_text.pdf)
+tactile image-to-piaf plan.jpg --sticker-workflow --verbose -o output.pdf
+# Outputs: output_piaf.pdf (for PIAF swelling) + output_text.pdf (second print pass)
 ```
 
 ---
 
-## `fabric-access batch`
+<a id="cli-batch"></a>
+## `tactile batch`
 
 Batch convert multiple images.
 
 ```bash
-fabric-access batch INPUT_DIR OUTPUT_DIR [OPTIONS]
+tactile batch INPUT_DIR OUTPUT_DIR [OPTIONS]
 ```
 
 | Option | Type | Default | Description |
@@ -110,37 +226,40 @@ fabric-access batch INPUT_DIR OUTPUT_DIR [OPTIONS]
 ### Example
 
 ```bash
-fabric-access batch ./drawings ./output --preset floor_plan --detect-text --recursive --verbose
+tactile batch ./drawings ./output --preset floor_plan --detect-text --recursive --verbose
 ```
 
 ---
 
-## `fabric-access list-presets`
+<a id="cli-list-presets"></a>
+## `tactile list-presets`
 
 Display all available conversion presets.
 
 ```bash
-fabric-access list-presets
+tactile list-presets
 ```
 
 ---
 
-## `fabric-access info`
+<a id="cli-info"></a>
+## `tactile info`
 
 Display toolkit information and supported formats.
 
 ```bash
-fabric-access info
+tactile info
 ```
 
 ---
 
-## `fabric-access version`
+<a id="cli-version"></a>
+## `tactile version`
 
 Display version number.
 
 ```bash
-fabric-access version
+tactile version
 ```
 
 ---
@@ -149,7 +268,8 @@ fabric-access version
 
 For MCP server setup, see [MCP_SETUP.md](guides/MCP_SETUP.md).
 
-## `convert_to_tactile`
+<a id="mcp-image-to-piaf"></a>
+## `image_to_piaf`
 
 Convert an image to PIAF-ready PDF.
 
@@ -195,6 +315,18 @@ Convert an image to PIAF-ready PDF.
 | `zoom_to` | string | none | Natural language target ("kitchen") |
 | `zoom_regions` | list | none | Multi-region for multi-page output |
 
+### Sticker Workflow Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `sticker_workflow` | bool | false | Generate dual PDFs for Braille sticker workflow |
+
+When `sticker_workflow=true`, generates:
+- `*_piaf.pdf` - Counter-highlighted image for PIAF swelling
+- `*_text.pdf` - Text-only for second print pass
+
+Both include registration marks in bottom-right corner for alignment.
+
 ### Other Parameters
 
 | Parameter | Type | Default | Description |
@@ -212,9 +344,11 @@ Convert an image to PIAF-ready PDF.
 | Zoom to room | "Convert floor-plan.jpg and zoom to the kitchen" |
 | Multi-region | "Convert plan.png with separate pages for each bedroom" |
 | No auto-scale | "Convert plan.jpg with auto_scale=false" |
+| Sticker workflow | "Convert plan.jpg with sticker_workflow=true" |
 
 ---
 
+<a id="mcp-list-presets"></a>
 ## `list_presets`
 
 List available presets.
@@ -223,6 +357,7 @@ List available presets.
 
 ---
 
+<a id="mcp-analyze"></a>
 ## `analyze_image`
 
 Pre-flight check with recommendations.
@@ -233,6 +368,7 @@ Pre-flight check with recommendations.
 
 ---
 
+<a id="mcp-describe"></a>
 ## `describe_image`
 
 Generate Arch-Alt-Text description for accessibility.
@@ -244,6 +380,7 @@ Generate Arch-Alt-Text description for accessibility.
 
 ---
 
+<a id="mcp-extract-text"></a>
 ## `extract_text_with_vision`
 
 Extract text using Claude's vision.
@@ -256,6 +393,7 @@ Extract text using Claude's vision.
 
 ---
 
+<a id="mcp-quality"></a>
 ## `assess_tactile_quality`
 
 Compare original vs processed for quality.
@@ -271,6 +409,7 @@ Compare original vs processed for quality.
 
 # PART 3: Quick Reference
 
+<a id="ref-presets"></a>
 ## Presets
 
 | Preset | Best For | Threshold | Enhancement | Paper |
@@ -286,24 +425,31 @@ Compare original vs processed for quality.
 | `diagram` | Schematics | 135 | auto_contrast | letter |
 | `presentation` | Large boards | 125 | clahe | tabloid |
 
+<a id="ref-tasks"></a>
 ## Common CLI Tasks
 
 | Task | Command |
 |------|---------|
-| Basic conversion | `fabric-access image-to-piaf plan.jpg --preset floor_plan` |
+| Basic conversion | `tactile image-to-piaf plan.jpg --preset floor_plan` |
 | With Braille | `... --detect-text --braille-grade 2` |
+| Manual scaling | `... --scale-percent 150` |
+| Auto-scale with cap | `... --detect-text --max-scale-factor 2.0` |
+| Force abbreviation key | `... --detect-text --force-abbreviation-key` |
 | Zoom to region | `... --zoom-region 25,30,50,40` |
 | Auto-reduce density | `... --auto-reduce-density` |
 | Large image tiling | `... --enable-tiling --paper-size tabloid` |
-| Batch folder | `fabric-access batch ./in ./out --preset floor_plan` |
+| Sticker workflow | `... --sticker-workflow -o output.pdf` |
+| Batch folder | `tactile batch ./in ./out --preset floor_plan` |
 | Recursive batch | `... --recursive` |
 
+<a id="ref-formats"></a>
 ## Supported Formats
 
 **Input:** JPG, JPEG, PNG, TIFF, TIF, BMP, GIF, PDF
 
 **Output:** PDF (300 DPI, pure black & white)
 
+<a id="ref-paper"></a>
 ## Paper Sizes
 
 | Size | Dimensions | Pixels at 300 DPI |
