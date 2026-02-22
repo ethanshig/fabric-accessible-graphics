@@ -45,6 +45,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+ocr = [
+    "easyocr>=1.7.0",
+]
 mcp = [
     "mcp>=1.0.0",
     "anthropic>=0.40.0",
@@ -57,8 +60,8 @@ dev = [
 ]
 
 [project.scripts]
-tactile = "tactile_core.cli:main"
-tactile-mcp = "tactile_core.mcp_server.server:main"
+tact = "tactile_core.cli:main"
+tact-mcp = "tactile_core.mcp_server.server:main"
 
 [project.urls]
 Homepage = "https://github.com/ethanshig/radical-accessibility"

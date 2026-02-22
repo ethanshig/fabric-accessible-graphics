@@ -82,6 +82,10 @@ class ConversionParams:
     use_grid_overlay: bool = False
     assess_quality: bool = False
 
+    # Color-to-tactile (RainbowTact)
+    color_to_tactile: bool = False
+    rainbowtact_num_colors: int = 5
+
     # Pre-detected texts (for hybrid OCR or CLI text injection)
     predetected_texts: Optional[List[DetectedText]] = None
 
@@ -117,6 +121,8 @@ class ConversionResult:
     threshold_used: Optional[int] = None
     preset_used: Optional[str] = None
     hybrid_ocr_used: bool = False
+    color_to_tactile: bool = False
+    color_regions_count: int = 0
     zoom_applied: Optional[Dict[str, Any]] = None
     is_multipage: bool = False
     is_multi_region: bool = False
@@ -342,6 +348,16 @@ class TactileConverter:
                         "original_size": {"width": original_img_width, "height": original_img_height},
                         "cropped_size": {"width": img_width, "height": img_height}
                     }
+
+            # ============================================================
+            # RAINBOWTACT: Color-to-Tactile Pattern Conversion
+            # ============================================================
+            if params.color_to_tactile:
+                return self._convert_with_rainbowtact(
+                    params, processor, standards, image_path_for_processing,
+                    paper_size, threshold, zoom_applied,
+                    original_img_width, original_img_height, img_width, img_height
+                )
 
             # Handle pre-detected texts (from hybrid OCR or CLI)
             detected_texts = params.predetected_texts or []
@@ -569,6 +585,223 @@ class TactileConverter:
                 success=False,
                 error=str(e),
                 error_type="unexpected_error"
+            )
+
+    def _convert_with_rainbowtact(
+        self,
+        params: ConversionParams,
+        processor: 'ImageProcessor',
+        standards: 'StandardsLoader',
+        image_path_for_processing: str,
+        paper_size: str,
+        threshold: int,
+        zoom_applied,
+        original_img_width, original_img_height,
+        img_width, img_height
+    ) -> ConversionResult:
+        """Handle conversion using RainbowTact color-to-tactile patterns."""
+        try:
+            # Run RainbowTact processing
+            processed_image, metadata, color_regions, tactile_patterns = \
+                processor.process_with_rainbowtact(
+                    input_path=image_path_for_processing,
+                    num_colors=params.rainbowtact_num_colors,
+                    detect_text=params.detect_text,
+                    paper_size=paper_size,
+                )
+
+            # Text detection results from RainbowTact processing
+            detected_texts = metadata.get('detected_texts', [])
+
+            # EasyOCR override: if no pre-detected, try EasyOCR on original
+            if params.detect_text and not detected_texts and not params.predetected_texts:
+                try:
+                    from tactile_core.core.easyocr_detector import EasyOCRDetector
+                    from PIL import Image
+                    detector = EasyOCRDetector(language='en', gpu=False)
+                    source_image = Image.open(image_path_for_processing)
+                    detected_texts = detector.detect_text(source_image)
+                except Exception as e:
+                    self.logger.warning(f"EasyOCR text detection failed: {e}")
+
+            if params.predetected_texts:
+                detected_texts = params.predetected_texts
+
+            # Convert to Braille labels
+            braille_labels = None
+            key_entries = []
+            braille_converter = None
+            braille_labels_count = 0
+
+            if params.detect_text and detected_texts:
+                try:
+                    braille_config = self._create_braille_config(params)
+                    braille_converter = BrailleConverter(braille_config, self.logger)
+
+                    if params.use_abbreviation_key or params.force_abbreviation_key:
+                        detected_text_widths = {t.text: t.width for t in detected_texts}
+                        braille_labels, key_entries = braille_converter.create_braille_labels(
+                            detected_texts,
+                            generate_key=True,
+                            detected_text_widths=detected_text_widths if not params.force_abbreviation_key else None
+                        )
+                    else:
+                        braille_labels, _ = braille_converter.create_braille_labels(detected_texts)
+
+                    if braille_labels:
+                        braille_labels_count = len(braille_labels)
+
+                    # White out text regions on the pattern image
+                    braille_config_dict = standards.get_all_config().get('braille', {})
+                    if braille_config_dict.get('whiteout_original_text', True) and detected_texts:
+                        processed_image = processor.whiteout_text_regions(
+                            processed_image, detected_texts,
+                            padding=braille_config_dict.get('whiteout_padding', 5)
+                        )
+                except Exception as e:
+                    self.logger.warning(f"Braille conversion failed: {e}")
+
+            # Generate output path
+            output_path = params.output_path or self._generate_output_path(params.input_path)
+
+            # Generate PDF with color pattern legend
+            pdf_generator = PIAFPDFGenerator(
+                logger=self.logger,
+                config=standards.get_all_config()
+            )
+
+            try:
+                final_output = pdf_generator.generate(
+                    image=processed_image,
+                    output_path=output_path,
+                    paper_size=paper_size,
+                    metadata=metadata,
+                    braille_labels=braille_labels,
+                    braille_converter=braille_converter,
+                    key_entries=key_entries if key_entries else None
+                )
+
+                # Add color pattern legend page
+                # We need to reopen the PDF and add the legend
+                # Actually, we'll generate it as part of a multipage approach
+            except PDFGeneratorError as e:
+                return ConversionResult(
+                    success=False,
+                    error=f"PDF generation failed: {e}",
+                    error_type="pdf_error"
+                )
+
+            # Re-generate with legend page included
+            # The cleanest approach: generate using the multipage pipeline
+            try:
+                from reportlab.pdfgen import canvas as reportlab_canvas
+                from reportlab.lib.units import inch
+                from reportlab.lib.utils import ImageReader
+                import io
+
+                page_width, page_height = pdf_generator.SIZES[paper_size]
+                page_width_pts = page_width * inch
+                page_height_pts = page_height * inch
+
+                c = reportlab_canvas.Canvas(output_path, pagesize=(page_width_pts, page_height_pts))
+                c.setTitle(metadata.get('source_file', 'PIAF Color-Tactile') if metadata else 'PIAF Color-Tactile')
+                c.setAuthor("TACT — Tactile Architectural Conversion Tool")
+                c.setSubject("Color-to-tactile graphics for PIAF printing")
+                c.setCreator("tact")
+
+                # Store image height for Braille label coordinate conversion
+                pdf_generator.image_height = processed_image.size[1]
+
+                # Check if image fits
+                fits, (iw, ih) = pdf_generator.fits_on_page(processed_image, paper_size, pdf_generator.TARGET_DPI)
+                if not fits:
+                    scale_w = page_width / iw
+                    scale_h = page_height / ih
+                    scale = min(scale_w, scale_h) * 0.95
+                    iw *= scale
+                    ih *= scale
+
+                x_offset = (page_width - iw) / 2 * inch
+                y_offset = (page_height - ih) / 2 * inch
+
+                # Draw main image
+                img_buffer = io.BytesIO()
+                processed_image.save(img_buffer, format='PNG')
+                img_buffer.seek(0)
+                img_reader = ImageReader(img_buffer)
+
+                c.drawImage(img_reader, x_offset, y_offset,
+                           width=iw * inch, height=ih * inch,
+                           preserveAspectRatio=True)
+
+                # Add Braille labels
+                if braille_labels:
+                    scale_factor = iw / processed_image.size[0]
+                    pdf_generator._add_braille_labels(c, braille_labels, scale_factor, x_offset, y_offset)
+
+                # Add abbreviation key page
+                if key_entries:
+                    c.showPage()
+                    pdf_generator.add_abbreviation_key_page(c, key_entries, page_width_pts, page_height_pts)
+
+                # Add color pattern legend page
+                c.showPage()
+                pdf_generator.add_color_pattern_legend(
+                    c, color_regions, tactile_patterns,
+                    page_width_pts, page_height_pts
+                )
+
+                from tactile_core.utils.validators import resolve_wsl_path, verify_file_exists
+                full_output_path = resolve_wsl_path(output_path)
+                c.save()
+
+                verify_file_exists(full_output_path)
+
+            except Exception as e:
+                return ConversionResult(
+                    success=False,
+                    error=f"PDF generation with legend failed: {e}",
+                    error_type="pdf_error"
+                )
+
+            # Build result
+            density = metadata.get('density_percentage', 0)
+            density_message = self._get_density_message(density)
+
+            message_parts = ["Color-to-tactile conversion complete."]
+            message_parts.append(f"{len(color_regions)} color regions mapped to tactile patterns.")
+            if braille_labels_count > 0:
+                message_parts.append(f"{braille_labels_count} Braille label(s) added.")
+            if key_entries:
+                message_parts.append(f"{len(key_entries)} label(s) abbreviated with key page.")
+            message_parts.append("Color pattern legend page included.")
+            message_parts.append(density_message)
+            message_parts.append("Ready for PIAF printing.")
+
+            return ConversionResult(
+                success=True,
+                output_file=str(full_output_path),
+                density_percentage=round(density, 1),
+                braille_labels_count=braille_labels_count,
+                key_entries_count=len(key_entries) if key_entries else 0,
+                detected_text_count=len(detected_texts),
+                color_to_tactile=True,
+                color_regions_count=len(color_regions),
+                paper_size=paper_size,
+                threshold_used=threshold,
+                preset_used=params.preset,
+                zoom_applied=zoom_applied,
+                original_size=(original_img_width, original_img_height),
+                processed_size=(img_width, img_height),
+                message=" ".join(message_parts)
+            )
+
+        except Exception as e:
+            logger.error(f"RainbowTact conversion error: {e}")
+            return ConversionResult(
+                success=False,
+                error=str(e),
+                error_type="rainbowtact_error"
             )
 
     def convert_multipage(

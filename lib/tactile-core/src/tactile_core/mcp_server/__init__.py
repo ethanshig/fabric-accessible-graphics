@@ -1,9 +1,8 @@
 """
-MCP Server for Fabric Accessible Graphics Toolkit.
+MCP Server for TACT — Tactile Architectural Conversion Tool.
 
-Exposes the tactile image-to-piaf conversion tools to Claude,
-enabling natural language interaction for converting architectural
-images to tactile graphics.
+Exposes tactile conversion tools to Claude, enabling natural language
+interaction for converting architectural images to tactile graphics.
 """
 
 from tactile_core.mcp_server.server import main

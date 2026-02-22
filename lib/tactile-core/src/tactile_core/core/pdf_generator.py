@@ -9,6 +9,8 @@ from pathlib import Path
 from typing import Optional, Tuple, List
 from PIL import Image
 import io
+import numpy as np
+import cv2
 
 from reportlab.pdfgen import canvas
 from reportlab.lib.units import inch
@@ -176,6 +178,12 @@ class PIAFPDFGenerator:
             raise PDFGeneratorError(f"Invalid paper size: {paper_size}")
 
         page_width, page_height = self.SIZES[paper_size]
+
+        # Auto-detect landscape: if image is wider than tall, use landscape page
+        img_w, img_h = image.size
+        if img_w > img_h:
+            page_width, page_height = page_height, page_width
+
         img_width, img_height = self.calculate_dimensions(image, dpi)
 
         fits = img_width <= page_width and img_height <= page_height
@@ -225,6 +233,13 @@ class PIAFPDFGenerator:
                 raise PDFGeneratorError(f"Invalid paper size: {paper_size}")
 
             page_width, page_height = self.SIZES[paper_size]
+
+            # Auto-detect landscape: if image is wider than tall, use landscape page
+            img_w, img_h = image.size
+            if img_w > img_h:
+                page_width, page_height = page_height, page_width
+                self.logger.info(f"Auto-rotated to landscape ({page_width}\" x {page_height}\")")
+
             page_width_pts = page_width * inch
             page_height_pts = page_height * inch
 
@@ -258,9 +273,9 @@ class PIAFPDFGenerator:
 
             # Set metadata
             c.setTitle(metadata.get('source_file', 'PIAF Image') if metadata else 'PIAF Image')
-            c.setAuthor("Fabric Accessible Graphics Toolkit")
+            c.setAuthor("TACT — Tactile Architectural Conversion Tool")
             c.setSubject("Tactile graphics for PIAF printing")
-            c.setCreator("tactile")
+            c.setCreator("tact")
 
             # Center image on page
             x_offset = (page_width - img_width) / 2 * inch
@@ -751,6 +766,210 @@ class PIAFPDFGenerator:
 
         self.logger.info(f"Added abbreviation key page with {len(key_entries)} entries (two-column layout)")
 
+    def add_color_pattern_legend(
+        self,
+        canvas_obj: canvas.Canvas,
+        regions,
+        patterns,
+        page_width: float,
+        page_height: float,
+    ) -> None:
+        """
+        Add a COLOR PATTERN KEY page showing which tactile pattern maps to which color.
+
+        Each entry shows a rendered pattern swatch alongside the color name
+        in both Braille and print.
+
+        Args:
+            canvas_obj: ReportLab canvas object
+            regions: List of ColorRegion objects
+            patterns: List of TactilePattern objects
+            page_width: Page width in points
+            page_height: Page height in points
+        """
+        if not regions or not patterns:
+            return
+
+        from tactile_core.core.rainbowtact import RainbowTactConverter, RainbowTactConfig
+
+        # Layout constants
+        margin = 0.75 * inch
+        swatch_width_in = 1.0   # inches
+        swatch_height_in = 0.5  # inches
+        swatch_width_pts = swatch_width_in * inch
+        swatch_height_pts = swatch_height_in * inch
+        swatch_px_w = int(swatch_width_in * 300)  # 300 DPI
+        swatch_px_h = int(swatch_height_in * 300)
+
+        braille_line_height = 14
+        print_line_height = 14
+        entry_spacing = 12
+        entry_height = swatch_height_pts + braille_line_height + print_line_height + entry_spacing
+
+        # Two-column layout
+        column_gap = 0.4 * inch
+        column_width = (page_width - 2 * margin - column_gap) / 2
+        left_column_x = margin
+        right_column_x = margin + column_width + column_gap
+
+        # Font settings
+        braille_config = self.config.get('braille', {})
+        braille_font = braille_config.get('font_name', 'DejaVu Sans')
+        braille_font_size = BRAILLE_FONT_SIZE_POINTS
+        print_font_size = 10
+        title_print_font_size = 14
+
+        # Start position
+        y_position = page_height - margin
+
+        # Title: "COLOR PATTERN KEY" in dual format
+        title_text = "COLOR PATTERN KEY"
+
+        if self._internal_braille_converter and self._braille_font_available:
+            try:
+                braille_title = self._internal_braille_converter.convert_text(title_text)
+                canvas_obj.setFont(braille_font, braille_font_size)
+                canvas_obj.setFillColorRGB(0, 0, 0)
+                canvas_obj.drawString(margin, y_position, braille_title)
+                y_position -= braille_font_size + 4
+            except Exception:
+                pass
+
+        canvas_obj.setFont("Helvetica-Bold", title_print_font_size)
+        canvas_obj.setFillColorRGB(0, 0, 0)
+        canvas_obj.drawString(margin, y_position, title_text)
+        y_position -= title_print_font_size + 8
+
+        # Horizontal line under title
+        canvas_obj.setStrokeColorRGB(0, 0, 0)
+        canvas_obj.setLineWidth(1)
+        canvas_obj.line(margin, y_position, page_width - margin, y_position)
+        y_position -= 16
+
+        content_start_y = y_position
+
+        # Column tracking
+        current_column = 0
+        left_y = content_start_y
+        right_y = content_start_y
+
+        # Create a dummy converter for rendering swatches
+        converter = RainbowTactConverter()
+
+        for region, pattern in zip(regions, patterns):
+            # Get column position
+            y_pos = left_y if current_column == 0 else right_y
+            x_pos = left_column_x if current_column == 0 else right_column_x
+
+            # Check if entry fits in current column
+            if y_pos < margin + entry_height:
+                if current_column == 0:
+                    current_column = 1
+                    y_pos = right_y
+                    x_pos = right_column_x
+                else:
+                    # New page
+                    canvas_obj.showPage()
+                    current_column = 0
+                    left_y = page_height - margin
+                    right_y = page_height - margin
+
+                    # Continuation header
+                    if self._internal_braille_converter and self._braille_font_available:
+                        try:
+                            cont_braille = self._internal_braille_converter.convert_text("KEY (continued)")
+                            canvas_obj.setFont(braille_font, braille_font_size)
+                            canvas_obj.setFillColorRGB(0, 0, 0)
+                            canvas_obj.drawString(margin, left_y, cont_braille)
+                            left_y -= braille_font_size + 4
+                        except Exception:
+                            pass
+
+                    canvas_obj.setFont("Helvetica-Bold", title_print_font_size)
+                    canvas_obj.setFillColorRGB(0, 0, 0)
+                    canvas_obj.drawString(margin, left_y, "KEY (continued)")
+                    left_y -= title_print_font_size + 8
+
+                    canvas_obj.setStrokeColorRGB(0, 0, 0)
+                    canvas_obj.setLineWidth(1)
+                    canvas_obj.line(margin, left_y, page_width - margin, left_y)
+                    left_y -= 16
+
+                    right_y = left_y
+                    y_pos = left_y
+                    x_pos = left_column_x
+
+            # Render pattern swatch as bitmap
+            swatch_array = np.full((swatch_px_h, swatch_px_w), 255, dtype=np.uint8)
+            full_mask = np.ones((swatch_px_h, swatch_px_w), dtype=bool)
+
+            if not pattern.is_empty:
+                if pattern.is_chromatic and pattern.wavelength:
+                    converter._render_waves(swatch_array, full_mask, pattern)
+                elif not pattern.is_chromatic and pattern.dot_spacing:
+                    converter._render_dots(swatch_array, full_mask, pattern)
+
+            # Draw border around swatch
+            cv2.rectangle(swatch_array, (0, 0), (swatch_px_w - 1, swatch_px_h - 1), 0, 2)
+
+            # Convert swatch to PIL, then to reportlab image
+            swatch_pil = Image.fromarray(swatch_array, mode='L')
+            img_buffer = io.BytesIO()
+            swatch_pil.save(img_buffer, format='PNG')
+            img_buffer.seek(0)
+            img_reader = ImageReader(img_buffer)
+
+            # Draw swatch on PDF (y_pos is top of entry, draw swatch at top)
+            swatch_y = y_pos - swatch_height_pts
+            canvas_obj.drawImage(
+                img_reader, x_pos, swatch_y,
+                width=swatch_width_pts, height=swatch_height_pts
+            )
+
+            # Color name in Braille (to the right of swatch)
+            text_x = x_pos + swatch_width_pts + 8
+            text_y = swatch_y + swatch_height_pts - braille_line_height
+
+            if self._internal_braille_converter and self._braille_font_available:
+                try:
+                    braille_name = self._internal_braille_converter.convert_text(region.color_name)
+                    canvas_obj.setFont(braille_font, braille_font_size)
+                    canvas_obj.setFillColorRGB(0, 0, 0)
+                    canvas_obj.drawString(text_x, text_y, braille_name)
+                except Exception:
+                    pass
+
+            text_y -= print_line_height
+
+            # Color name in print
+            canvas_obj.setFont("Helvetica", print_font_size)
+            canvas_obj.setFillColorRGB(0, 0, 0)
+
+            # Add pattern type indicator
+            if pattern.is_empty:
+                descriptor = f"{region.color_name} (empty)"
+            elif pattern.is_chromatic:
+                descriptor = f"{region.color_name} (wave)"
+            else:
+                descriptor = f"{region.color_name} (dots)"
+
+            canvas_obj.drawString(text_x, text_y, descriptor)
+
+            # Update column y position
+            new_y = swatch_y - entry_spacing
+            if current_column == 0:
+                left_y = new_y
+            else:
+                right_y = new_y
+
+            # Alternate columns
+            if current_column == 0:
+                current_column = 1
+            else:
+                current_column = 0
+
+        self.logger.info(f"Added color pattern legend with {len(regions)} entries")
+
     def add_key_page(self, canvas_obj: canvas.Canvas, symbol_key_entries: list,
                     page_width: float, page_height: float,
                     braille_converter=None):
@@ -907,6 +1126,13 @@ class PIAFPDFGenerator:
                 raise PDFGeneratorError(f"Invalid paper size: {paper_size}")
 
             page_width, page_height = self.SIZES[paper_size]
+
+            # Auto-detect landscape: if image is wider than tall, use landscape page
+            img_w, img_h = image.size
+            if img_w > img_h:
+                page_width, page_height = page_height, page_width
+                self.logger.info(f"Auto-rotated to landscape ({page_width}\" x {page_height}\")")
+
             page_width_pts = page_width * inch
             page_height_pts = page_height * inch
 
@@ -935,9 +1161,9 @@ class PIAFPDFGenerator:
 
             # Set metadata
             c.setTitle(metadata.get('source_file', 'PIAF Tiled Image') if metadata else 'PIAF Tiled Image')
-            c.setAuthor("Fabric Accessible Graphics Toolkit")
+            c.setAuthor("TACT — Tactile Architectural Conversion Tool")
             c.setSubject("Tiled tactile graphics for PIAF printing")
-            c.setCreator("tactile")
+            c.setCreator("tact")
 
             # Add abbreviation key page if there are key entries (at the beginning)
             if key_entries:
@@ -1066,6 +1292,15 @@ class PIAFPDFGenerator:
                 raise PDFGeneratorError(f"Invalid paper size: {paper_size}")
 
             page_width, page_height = self.SIZES[paper_size]
+
+            # Auto-detect landscape from first page: if image is wider than tall, use landscape page
+            if pages_data:
+                first_img = pages_data[0][0]
+                img_w, img_h = first_img.size
+                if img_w > img_h:
+                    page_width, page_height = page_height, page_width
+                    self.logger.info(f"Auto-rotated to landscape ({page_width}\" x {page_height}\")")
+
             page_width_pts = page_width * inch
             page_height_pts = page_height * inch
 
@@ -1074,9 +1309,9 @@ class PIAFPDFGenerator:
 
             # Set metadata
             c.setTitle("Multi-page PIAF Document")
-            c.setAuthor("Fabric Accessible Graphics Toolkit")
+            c.setAuthor("TACT — Tactile Architectural Conversion Tool")
             c.setSubject("Multi-page tactile graphics for PIAF printing")
-            c.setCreator("tactile")
+            c.setCreator("tact")
 
             # Process each page
             for page_idx, (processed_image, braille_labels) in enumerate(pages_data, 1):
@@ -1201,6 +1436,12 @@ class PIAFPDFGenerator:
                 raise PDFGeneratorError(f"Invalid paper size: {paper_size}")
 
             page_width, page_height = self.SIZES[paper_size]
+
+            # Auto-detect landscape: if image is wider than tall, use landscape page
+            if image_size and image_size[0] > image_size[1]:
+                page_width, page_height = page_height, page_width
+                self.logger.info(f"Auto-rotated to landscape ({page_width}\" x {page_height}\")")
+
             page_width_pts = page_width * inch
             page_height_pts = page_height * inch
 
@@ -1209,9 +1450,9 @@ class PIAFPDFGenerator:
 
             # Set metadata
             c.setTitle("Text Layer for Sticker Workflow")
-            c.setAuthor("Fabric Accessible Graphics Toolkit")
+            c.setAuthor("TACT — Tactile Architectural Conversion Tool")
             c.setSubject("Text-only output for second print pass")
-            c.setCreator("tactile")
+            c.setCreator("tact")
 
             # Calculate scale factor if image size provided
             if image_size:

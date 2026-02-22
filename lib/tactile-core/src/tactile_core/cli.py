@@ -1,8 +1,9 @@
 """
-Command-line interface for Fabric Accessible Graphics toolkit.
+TACT — Tactile Architectural Conversion Tool
 
+A continuation of Way & Barner's 1997 TACTICS system, updated for the AI era.
 Provides accessible, screen-reader friendly commands for converting
-images to tactile-ready formats.
+images to tactile-ready formats for PIAF swell paper printing.
 """
 
 import sys
@@ -27,21 +28,38 @@ from tactile_core.core.braille_converter import BrailleConverter, BrailleConfig
 from tactile_core.core.label_scaler import analyze_label_fit
 
 
-@click.group()
-@click.version_option(version=__version__, prog_name="tactile")
+class DefaultGroup(click.Group):
+    """Click group that defaults to 'convert' when first arg is a file path."""
+
+    def parse_args(self, ctx, args):
+        if args and args[0] not in self.commands and not args[0].startswith('-'):
+            args.insert(0, 'convert')
+        return super().parse_args(ctx, args)
+
+
+@click.group(cls=DefaultGroup)
+@click.version_option(version=__version__, prog_name="tact")
 def main():
     """
-    Fabric Accessible Graphics Toolkit
+    TACT — Tactile Architectural Conversion Tool
 
-    A command-line tool for converting images to high-contrast, tactile-ready
-    formats for PIAF (Picture In A Flash) machines.
-
+    Convert images to tactile-ready PDFs for PIAF swell paper printing.
     Designed for accessibility and full screen-reader compatibility.
+
+    \b
+    Quick usage:
+        tact IMAGE.jpg --preset floor_plan --verbose
+
+    \b
+    Subcommands:
+        tact presets    List available presets
+        tact batch      Batch convert a folder
+        tact info       Show tool information
     """
     pass
 
 
-@main.command(name="image-to-piaf")
+@main.command(name="convert")
 @click.argument('input_path', type=click.Path(exists=True))
 @click.option(
     '--output', '-o',
@@ -79,7 +97,7 @@ def main():
     '--preset',
     type=str,
     default=None,
-    help='Use a preset configuration (floor_plan, sketch, photograph, etc.). Use "list-presets" to see all.'
+    help='Use a preset configuration (floor_plan, sketch, photograph, etc.). Use "tact presets" to see all.'
 )
 @click.option(
     '--enhance', '-e',
@@ -187,68 +205,60 @@ def main():
     is_flag=True,
     help='Generate dual PDFs for Braille sticker workflow: PIAF version (counter-highlighted, no Braille) + text-only version for second print pass'
 )
-def image_to_piaf(input_path, output, threshold, paper_size, verbose, interactive, config, preset, enhance, enhance_strength, save_intermediate, enable_tiling, tile_overlap, no_registration_marks, auto_reduce_density, target_density, max_reduction_iterations, detect_text, braille_grade, braille_placement, zoom_region, scale_percent, auto_scale, max_scale_factor, abbreviation_key, force_abbreviation_key, sticker_workflow):
+def convert(input_path, output, threshold, paper_size, verbose, interactive, config, preset, enhance, enhance_strength, save_intermediate, enable_tiling, tile_overlap, no_registration_marks, auto_reduce_density, target_density, max_reduction_iterations, detect_text, braille_grade, braille_placement, zoom_region, scale_percent, auto_scale, max_scale_factor, abbreviation_key, force_abbreviation_key, sticker_workflow):
     """
     Convert an image to PIAF-ready PDF format.
 
     INPUT_PATH: Path to the image file to convert
 
+    \b
     Examples:
-
-    Basic conversion:
-        tactile image-to-piaf floor-plan.jpg
-
-    Using a preset (easiest - optimized settings):
-        tactile image-to-piaf floor-plan.jpg --preset floor_plan --verbose
-
-    With S-curve enhancement:
-        tactile image-to-piaf floor-plan.jpg --enhance s_curve --verbose
-
-    Custom threshold and output:
-        tactile image-to-piaf sketch.png --threshold 140 --output result.pdf
+        tact floor-plan.jpg --preset floor_plan --verbose
+        tact sketch.png --threshold 140 --output result.pdf
+        tact photo.jpg --preset photograph --detect-text --braille-grade 2
 
     Strong enhancement for faint images:
-        tactile image-to-piaf faint-sketch.jpg --enhance s_curve --enhance-strength 1.5
+        tact faint-sketch.jpg --enhance s_curve --enhance-strength 1.5
 
     Interactive mode with detailed output:
-        tactile image-to-piaf drawing.jpg --interactive --verbose
+        tact drawing.jpg --interactive --verbose
 
     Automatic density reduction (fixes high density issues):
-        tactile image-to-piaf dense-image.jpg --auto-reduce-density --verbose
+        tact dense-image.jpg --auto-reduce-density --verbose
 
     Custom density reduction target:
-        tactile image-to-piaf floor-plan.jpg --auto-reduce-density --target-density 0.25
+        tact floor-plan.jpg --auto-reduce-density --target-density 0.25
 
     Density reduction with more iterations:
-        tactile image-to-piaf complex-drawing.png --auto-reduce-density --max-reduction-iterations 15
+        tact complex-drawing.png --auto-reduce-density --max-reduction-iterations 15
 
     Enable tiling for large images:
-        tactile image-to-piaf large-plan.jpg --enable-tiling --verbose
+        tact large-plan.jpg --enable-tiling --verbose
 
     Tiling with custom overlap:
-        tactile image-to-piaf huge-drawing.png --enable-tiling --tile-overlap 0.15
+        tact huge-drawing.png --enable-tiling --tile-overlap 0.15
 
     Tiling without registration marks:
-        tactile image-to-piaf large-map.tif --enable-tiling --no-registration-marks
+        tact large-map.tif --enable-tiling --no-registration-marks
 
     Manual scaling (zoom in 150%):
-        tactile image-to-piaf floor-plan.jpg --scale-percent 150 --detect-text
+        tact floor-plan.jpg --scale-percent 150 --detect-text
 
     Auto-scale with cap (max 200%):
-        tactile image-to-piaf floor-plan.jpg --detect-text --max-scale-factor 2.0
+        tact floor-plan.jpg --detect-text --max-scale-factor 2.0
 
     Disable auto-scaling:
-        tactile image-to-piaf floor-plan.jpg --detect-text --no-auto-scale
+        tact floor-plan.jpg --detect-text --no-auto-scale
 
     Force abbreviation key for all labels:
-        tactile image-to-piaf dense-plan.jpg --detect-text --force-abbreviation-key
+        tact dense-plan.jpg --detect-text --force-abbreviation-key
 
     Disable abbreviation key:
-        tactile image-to-piaf floor-plan.jpg --detect-text --no-abbreviation-key
+        tact floor-plan.jpg --detect-text --no-abbreviation-key
 
     Supported formats: JPG, PNG, TIFF, BMP, GIF, PDF
 
-    Use 'tactile list-presets' to see all available presets.
+    Use 'tact presets' to see all available presets.
     """
     # Initialize logger
     logger = AccessibleLogger(verbose=verbose or interactive)
@@ -263,7 +273,7 @@ def image_to_piaf(input_path, output, threshold, paper_size, verbose, interactiv
         # Display welcome message for interactive mode
         if interactive:
             logger.info("=" * 60)
-            logger.info("Fabric Accessible Graphics - Image to PIAF Converter")
+            logger.info("TACT — Tactile Architectural Conversion Tool")
             logger.info("=" * 60)
             logger.blank_line()
 
@@ -307,7 +317,7 @@ def image_to_piaf(input_path, output, threshold, paper_size, verbose, interactiv
 
             except PresetError as e:
                 logger.error("Invalid preset", e)
-                logger.solution("Use 'tactile list-presets' to see available presets")
+                logger.solution("Use 'tact presets' to see available presets")
                 sys.exit(1)
 
         # Get default threshold from config if still not specified
@@ -803,8 +813,8 @@ def image_to_piaf(input_path, output, threshold, paper_size, verbose, interactiv
 @main.command(name="version")
 def version():
     """Display version information."""
-    click.echo(f"Fabric Accessible Graphics Toolkit v{__version__}")
-    click.echo("A tool for creating tactile-ready graphics for PIAF machines")
+    click.echo(f"TACT — Tactile Architectural Conversion Tool v{__version__}")
+    click.echo("Convert images to tactile-ready formats for PIAF swell paper printing")
 
 
 @main.command(name="info")
@@ -813,14 +823,19 @@ def info():
     logger = AccessibleLogger(verbose=True)
 
     logger.info("=" * 60)
-    logger.info("Fabric Accessible Graphics Toolkit")
+    logger.info("TACT — Tactile Architectural Conversion Tool")
     logger.info(f"Version: {__version__}")
     logger.info("=" * 60)
     logger.blank_line()
 
     logger.info("Purpose:")
     logger.info("  Convert images to high-contrast, tactile-ready PDFs")
-    logger.info("  Optimized for PIAF (Picture In A Flash) machines")
+    logger.info("  Optimized for PIAF (Picture In A Flash) swell paper printing")
+    logger.blank_line()
+
+    logger.info("Lineage:")
+    logger.info("  Continuation of Way & Barner's 1997 TACTICS system,")
+    logger.info("  updated for the AI era")
     logger.blank_line()
 
     logger.info("Supported Input Formats:")
@@ -843,11 +858,11 @@ def info():
     logger.info("  - Verbose mode for detailed progress")
     logger.blank_line()
 
-    logger.info("For help with commands, use: tactile --help")
+    logger.info("For help with commands, use: tact --help")
     logger.info("=" * 60)
 
 
-@main.command(name="list-presets")
+@main.command(name="presets")
 def list_presets():
     """List all available conversion presets."""
     logger = AccessibleLogger(verbose=True)
@@ -869,10 +884,10 @@ def list_presets():
 
         logger.info("=" * 60)
         logger.info("Usage:")
-        logger.info("  tactile image-to-piaf IMAGE.jpg --preset PRESET_NAME")
+        logger.info("  tact IMAGE.jpg --preset PRESET_NAME")
         logger.blank_line()
         logger.info("Example:")
-        logger.info("  tactile image-to-piaf floor-plan.jpg --preset floor_plan")
+        logger.info("  tact floor-plan.jpg --preset floor_plan")
         logger.info("=" * 60)
 
     except PresetError as e:
@@ -994,19 +1009,19 @@ def batch(input_dir, output_dir, pattern, preset, threshold, enhance, paper_size
     Examples:
 
     Convert all JPGs in a folder with floor_plan preset:
-        tactile batch ./drawings ./output --preset floor_plan
+        tact batch ./drawings ./output --preset floor_plan
 
     Convert all images recursively:
-        tactile batch ./all-drawings ./output --recursive --preset floor_plan
+        tact batch ./all-drawings ./output --recursive --preset floor_plan
 
     Custom settings for all files:
-        tactile batch ./sketches ./output --threshold 130 --enhance s_curve
+        tact batch ./sketches ./output --threshold 130 --enhance s_curve
 
     Process only PNG files:
-        tactile batch ./images ./output --pattern "*.png" --preset photograph
+        tact batch ./images ./output --pattern "*.png" --preset photograph
 
     Batch with automatic density reduction:
-        tactile batch ./drawings ./output --auto-reduce-density --verbose
+        tact batch ./drawings ./output --auto-reduce-density --verbose
     """
     import glob as glob_module
     from pathlib import Path as PathLib

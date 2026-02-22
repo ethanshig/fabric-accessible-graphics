@@ -10,16 +10,55 @@ import logging
 from pathlib import Path
 from typing import Optional, Union, List, Dict, Any, Tuple
 
-from tactile_core.core.processor import ImageProcessor, ImageProcessorError
-from tactile_core.core.pdf_generator import PIAFPDFGenerator, PDFGeneratorError
-from tactile_core.config.standards_loader import StandardsLoader, StandardsLoaderError
-from tactile_core.config.presets import PresetManager, PresetError
-from tactile_core.core.braille_converter import BrailleConverter, BrailleConfig, KeyEntry
-from tactile_core.core.text_detector import TextDetector, TextDetectionConfig, DetectedText
-from tactile_core.core.hybrid_text_detector import HybridTextDetector
-from tactile_core.core.grid_overlay import create_grid_overlay, grid_cell_to_percent
-from tactile_core.utils.cache import cache_tesseract_results, load_cached_tesseract
-from tactile_core.core.label_scaler import analyze_label_fit
+# Heavy imports are lazy-loaded for fast MCP server startup.
+# Call _ensure_imports() before using any tactile_core classes.
+_imports_loaded = False
+
+
+def _ensure_imports():
+    """Lazy-load heavy tactile_core dependencies on first tool call."""
+    global _imports_loaded
+    if _imports_loaded:
+        return
+    global ImageProcessor, ImageProcessorError
+    global PIAFPDFGenerator, PDFGeneratorError
+    global StandardsLoader, StandardsLoaderError
+    global PresetManager, PresetError
+    global BrailleConverter, BrailleConfig, KeyEntry
+    global TextDetector, TextDetectionConfig, DetectedText
+    global EasyOCRDetector
+    global HybridTextDetector
+    global create_grid_overlay, grid_cell_to_percent
+    global cache_tesseract_results, load_cached_tesseract
+    global analyze_label_fit
+    global RainbowTactConverter, RainbowTactConfig
+
+    from tactile_core.core.processor import ImageProcessor as _IP, ImageProcessorError as _IPE
+    from tactile_core.core.pdf_generator import PIAFPDFGenerator as _PPG, PDFGeneratorError as _PDFE
+    from tactile_core.config.standards_loader import StandardsLoader as _SL, StandardsLoaderError as _SLE
+    from tactile_core.config.presets import PresetManager as _PM, PresetError as _PE
+    from tactile_core.core.braille_converter import BrailleConverter as _BC, BrailleConfig as _BCfg, KeyEntry as _KE
+    from tactile_core.core.text_detector import TextDetector as _TD, TextDetectionConfig as _TDC, DetectedText as _DT
+    from tactile_core.core.easyocr_detector import EasyOCRDetector as _EOD
+    from tactile_core.core.hybrid_text_detector import HybridTextDetector as _HTD
+    from tactile_core.core.grid_overlay import create_grid_overlay as _CGO, grid_cell_to_percent as _GCP
+    from tactile_core.utils.cache import cache_tesseract_results as _CTR, load_cached_tesseract as _LCT
+    from tactile_core.core.label_scaler import analyze_label_fit as _ALF
+    from tactile_core.core.rainbowtact import RainbowTactConverter as _RTC, RainbowTactConfig as _RTCfg
+
+    ImageProcessor, ImageProcessorError = _IP, _IPE
+    PIAFPDFGenerator, PDFGeneratorError = _PPG, _PDFE
+    StandardsLoader, StandardsLoaderError = _SL, _SLE
+    PresetManager, PresetError = _PM, _PE
+    BrailleConverter, BrailleConfig, KeyEntry = _BC, _BCfg, _KE
+    TextDetector, TextDetectionConfig, DetectedText = _TD, _TDC, _DT
+    EasyOCRDetector = _EOD
+    HybridTextDetector = _HTD
+    create_grid_overlay, grid_cell_to_percent = _CGO, _GCP
+    cache_tesseract_results, load_cached_tesseract = _CTR, _LCT
+    analyze_label_fit = _ALF
+    RainbowTactConverter, RainbowTactConfig = _RTC, _RTCfg
+    _imports_loaded = True
 
 logger = logging.getLogger("tactile-mcp")
 
@@ -337,6 +376,195 @@ async def _process_multipage_pdf(
     })
 
 
+async def _process_rainbowtact(
+    processor,
+    image_path_for_processing: str,
+    image_file,
+    output_path: str,
+    effective_paper_size: str,
+    effective_threshold: int,
+    preset,
+    detect_text: bool,
+    braille_grade: int,
+    rainbowtact_num_colors: int,
+    merged_detected_texts,
+    use_abbreviation_key: bool,
+    force_abbreviation_key: bool,
+    effective_scale_percent,
+    zoom_applied,
+    standards,
+    silent_logger,
+) -> str:
+    """Process image using RainbowTact color-to-tactile conversion."""
+    from PIL import Image
+    import io
+
+    try:
+        # Run RainbowTact processing
+        from tactile_core.core.rainbowtact import RainbowTactConverter, RainbowTactConfig
+
+        processed_image, metadata, color_regions, tactile_patterns = \
+            processor.process_with_rainbowtact(
+                input_path=image_path_for_processing,
+                num_colors=rainbowtact_num_colors,
+                detect_text=detect_text and not merged_detected_texts,
+                paper_size=effective_paper_size,
+            )
+
+        # Use pre-detected texts or processor's detected texts
+        detected_texts = merged_detected_texts or metadata.get('detected_texts', [])
+
+        # Convert to Braille labels
+        braille_labels = None
+        key_entries = []
+        braille_converter = None
+        braille_labels_count = 0
+
+        if detect_text and detected_texts:
+            try:
+                braille_config_dict = standards.get_all_config().get('braille', {})
+                braille_config = BrailleConfig(
+                    enabled=True,
+                    grade=int(braille_grade),
+                    placement="overlay",
+                    font_name=braille_config_dict.get('font_name', 'DejaVu Sans'),
+                    font_size=braille_config_dict.get('font_size', 10),
+                    offset_x=braille_config_dict.get('offset_x', 5),
+                    offset_y=braille_config_dict.get('offset_y', -10),
+                    max_label_length=braille_config_dict.get('max_label_length', 30),
+                    truncate_suffix=braille_config_dict.get('truncate_suffix', '...'),
+                    font_color=braille_config_dict.get('font_color', 'black'),
+                    detect_overlaps=braille_config_dict.get('detect_overlaps', True),
+                    min_label_spacing=braille_config_dict.get('min_label_spacing', 6)
+                )
+                braille_converter = BrailleConverter(braille_config, silent_logger)
+
+                if use_abbreviation_key or force_abbreviation_key:
+                    detected_text_widths = {t.text: t.width for t in detected_texts}
+                    braille_labels, key_entries = braille_converter.create_braille_labels(
+                        detected_texts,
+                        generate_key=True,
+                        detected_text_widths=detected_text_widths if not force_abbreviation_key else None
+                    )
+                else:
+                    braille_labels, _ = braille_converter.create_braille_labels(detected_texts)
+
+                if braille_labels:
+                    braille_labels_count = len(braille_labels)
+
+                # White out original text regions
+                whiteout_enabled = braille_config_dict.get('whiteout_original_text', True)
+                whiteout_padding = braille_config_dict.get('whiteout_padding', 5)
+                if whiteout_enabled and detected_texts:
+                    processed_image = processor.whiteout_text_regions(
+                        processed_image, detected_texts, padding=whiteout_padding
+                    )
+            except Exception as e:
+                logger.warning(f"Braille conversion failed: {e}")
+
+        # Generate PDF with legend page
+        pdf_generator = PIAFPDFGenerator(
+            logger=silent_logger,
+            config=standards.get_all_config()
+        )
+
+        from reportlab.pdfgen import canvas as reportlab_canvas
+        from reportlab.lib.units import inch
+        from reportlab.lib.utils import ImageReader
+        from tactile_core.utils.validators import resolve_wsl_path, verify_file_exists
+
+        page_width, page_height = pdf_generator.SIZES[effective_paper_size]
+        page_width_pts = page_width * inch
+        page_height_pts = page_height * inch
+
+        c = reportlab_canvas.Canvas(output_path, pagesize=(page_width_pts, page_height_pts))
+        c.setTitle(metadata.get('source_file', 'PIAF Color-Tactile'))
+        c.setAuthor("TACT — Tactile Architectural Conversion Tool")
+        c.setSubject("Color-to-tactile graphics for PIAF printing")
+        c.setCreator("tact")
+
+        pdf_generator.image_height = processed_image.size[1]
+
+        fits, (iw, ih) = pdf_generator.fits_on_page(processed_image, effective_paper_size, pdf_generator.TARGET_DPI)
+        if not fits:
+            scale_w = page_width / iw
+            scale_h = page_height / ih
+            scale = min(scale_w, scale_h) * 0.95
+            iw *= scale
+            ih *= scale
+
+        x_offset = (page_width - iw) / 2 * inch
+        y_offset = (page_height - ih) / 2 * inch
+
+        img_buffer = io.BytesIO()
+        processed_image.save(img_buffer, format='PNG')
+        img_buffer.seek(0)
+        img_reader = ImageReader(img_buffer)
+
+        c.drawImage(img_reader, x_offset, y_offset,
+                   width=iw * inch, height=ih * inch, preserveAspectRatio=True)
+
+        if braille_labels:
+            scale_factor = iw / processed_image.size[0]
+            pdf_generator._add_braille_labels(c, braille_labels, scale_factor, x_offset, y_offset)
+
+        # Add abbreviation key page
+        if key_entries:
+            c.showPage()
+            pdf_generator.add_abbreviation_key_page(c, key_entries, page_width_pts, page_height_pts)
+
+        # Add color pattern legend page
+        c.showPage()
+        pdf_generator.add_color_pattern_legend(
+            c, color_regions, tactile_patterns, page_width_pts, page_height_pts
+        )
+
+        full_output_path = resolve_wsl_path(output_path)
+        c.save()
+
+        density = metadata.get('density_percentage', 0)
+        density_message = _get_density_message(density)
+
+        message_parts = ["Color-to-tactile conversion complete."]
+        message_parts.append(f"{len(color_regions)} color regions mapped to tactile patterns.")
+        if braille_labels_count > 0:
+            message_parts.append(f"{braille_labels_count} Braille label(s) added.")
+        if key_entries:
+            message_parts.append(f"{len(key_entries)} label(s) abbreviated with key page.")
+        message_parts.append("Color pattern legend page included.")
+        message_parts.append(density_message)
+        message_parts.append("Ready for PIAF printing.")
+
+        return json.dumps({
+            "success": True,
+            "output_file": str(full_output_path),
+            "density_percentage": round(density, 1),
+            "braille_labels_count": braille_labels_count,
+            "key_entries_count": len(key_entries) if key_entries else 0,
+            "color_to_tactile": True,
+            "color_regions_count": len(color_regions),
+            "color_regions": [
+                {"name": r.color_name, "type": "chromatic" if r.is_chromatic else "achromatic"}
+                for r in color_regions
+            ],
+            "scale_applied": effective_scale_percent if effective_scale_percent else 100,
+            "paper_size": effective_paper_size,
+            "threshold_used": effective_threshold,
+            "preset_used": preset,
+            "detected_text_count": len(detected_texts),
+            "zoom_applied": zoom_applied,
+            "message": " ".join(message_parts)
+        })
+
+    except Exception as e:
+        logger.error(f"RainbowTact conversion error: {e}")
+        return json.dumps({
+            "success": False,
+            "error": str(e),
+            "error_type": "rainbowtact_error"
+        })
+
+
 async def image_to_piaf(
     image_path: str,
     output_path: Optional[str] = None,
@@ -358,7 +586,9 @@ async def image_to_piaf(
     zoom_region: Optional[Tuple[float, float, float, float]] = None,
     zoom_to: Optional[str] = None,
     zoom_regions: Optional[List[Dict[str, Any]]] = None,
-    sticker_workflow: bool = False
+    sticker_workflow: bool = False,
+    color_to_tactile: bool = False,
+    rainbowtact_num_colors: int = 5
 ) -> str:
     """
     Convert an architectural image to a PIAF-ready tactile PDF.
@@ -366,11 +596,16 @@ async def image_to_piaf(
     This tool processes images (floor plans, sections, diagrams, etc.) and
     creates high-contrast PDFs suitable for printing on PIAF tactile machines.
 
-    When detect_text=True, this tool uses a two-phase hybrid OCR approach:
-    - Phase 1: Runs Tesseract to find text positions, returns instructions for Claude
-              to view the image and extract text with normalized coordinates
-    - Phase 2: When called again with claude_text_json, merges Claude's accurate
-              text with Tesseract's accurate positions for optimal Braille placement
+    When detect_text=True, text is automatically detected using EasyOCR and
+    converted to Braille labels in a single call. No multi-step workflow needed.
+    If EasyOCR is unavailable, falls back to Tesseract OCR.
+
+    You can optionally pass claude_text_json to manually specify text positions,
+    which overrides automatic detection.
+
+    When color_to_tactile=True, uses the RainbowTact algorithm to convert colors
+    into distinguishable tactile patterns (waves for chromatic, dots for achromatic)
+    instead of simple B&W thresholding. Includes a color pattern legend page.
 
     Args:
         image_path: Path to the input image file (JPG, PNG, TIFF, BMP, GIF, or PDF)
@@ -382,7 +617,8 @@ async def image_to_piaf(
         braille_grade: Braille grade - 1 (uncontracted) or 2 (contracted, recommended)
         auto_reduce_density: Automatically reduce density if too high for PIAF
         tile_overlap: Overlap between tiles for large images (0.0-1.0, default 0.0 for no overlap)
-        claude_text_json: Claude's text extraction as JSON string or list of dicts (Phase 2 of hybrid OCR)
+        claude_text_json: Optional manual text override as JSON string or list of dicts.
+                         When provided, skips automatic OCR and uses these positions directly.
         use_grid_overlay: Enable grid overlay for more precise text positioning using cell references (e.g., "C4")
         assess_quality: Enable quality assessment - returns instructions for visual comparison (default: False)
         scale_percent: Manual zoom/scale percentage. None=auto (uses auto_scale), 150=1.5x, 200=2x.
@@ -410,10 +646,17 @@ async def image_to_piaf(
                          1. PIAF PDF with counter-highlighted text (no Braille) for swelling
                          2. Text-only PDF for second print pass alignment
                          Both include registration marks for paper alignment. Default: False.
+        color_to_tactile: Enable RainbowTact color-to-tactile conversion. Instead of simple
+                         B&W thresholding, maps colors to distinguishable tactile patterns
+                         (waves for chromatic colors, dots for achromatic). Includes a color
+                         pattern legend page. Default: False.
+        rainbowtact_num_colors: Number of color clusters for RainbowTact segmentation (2-10).
+                               More colors = more patterns but harder to distinguish. Default: 5.
 
     Returns:
         JSON string with conversion results including output file path and metadata
     """
+    _ensure_imports()
     try:
         silent_logger = SilentLogger()
 
@@ -629,227 +872,70 @@ async def image_to_piaf(
             logger.info(f"Zoomed to region {zoom_region}, cropped to {img_width}x{img_height}")
 
         # ============================================================
-        # PHASE 1: Hybrid OCR - Run Tesseract, return instructions for Claude
-        # ============================================================
-        if detect_text and not claude_text_json:
-            # Run Tesseract to get text positions
-            text_config = TextDetectionConfig(
-                enabled=True,
-                language='eng',
-                page_segmentation_mode=3,
-                min_confidence=50,  # Lower threshold to catch more
-                filter_dimensions=True
-            )
-
-            try:
-                text_detector = TextDetector(config=text_config, logger=silent_logger)
-                gray_image = Image.open(image_file).convert('L')
-                tesseract_results = text_detector.detect_text(gray_image)
-
-                # Create grid overlay if enabled (before caching so we can include grid_info)
-                grid_info = None
-                grid_image_path = None
-                if use_grid_overlay:
-                    import tempfile
-                    with Image.open(image_file) as original_img:
-                        grid_image, grid_rows, grid_cols = create_grid_overlay(original_img)
-                        # Save grid image to temp file
-                        grid_temp = tempfile.NamedTemporaryFile(
-                            suffix='.png', delete=False, prefix='grid_overlay_'
-                        )
-                        grid_image.save(grid_temp.name, format='PNG')
-                        grid_image_path = grid_temp.name
-                        grid_info = {"rows": grid_rows, "cols": grid_cols, "path": grid_image_path}
-                        logger.info(f"Created grid overlay: {grid_rows}x{grid_cols} at {grid_image_path}")
-
-                # Cache Tesseract results for Phase 2 (include grid_info if available)
-                cache_tesseract_results(
-                    str(image_file.absolute()),
-                    tesseract_results,
-                    image_size=(img_width, img_height),
-                    grid_info=grid_info
-                )
-
-                # Build instructions based on grid mode (grid_info already created above if enabled)
-                if use_grid_overlay and grid_info:
-                    instructions = (
-                        f"HYBRID OCR PHASE 1 COMPLETE: Tesseract found {len(tesseract_results)} text regions.\n\n"
-                        "GRID MODE ENABLED - Use cell references for precise positioning!\n\n"
-                        "NOW PLEASE:\n"
-                        f"1. VIEW the GRID IMAGE at: {grid_image_path}\n"
-                        f"   (Original image: {image_file.absolute()})\n"
-                        f"2. Grid dimensions: {grid_info['rows']} rows x {grid_info['cols']} columns\n\n"
-                        "3. Extract ALL visible text and return a JSON array with this format:\n"
-                        "[\n"
-                        "  {\n"
-                        '    "text": "exact text content",\n'
-                        '    "grid_cell": "C4",  // cell where text is located (e.g., A1, B3, C4)\n'
-                        '    "rotation_degrees": 0,  // 0=horizontal, 90=rotated clockwise, -90=counter-clockwise\n'
-                        '    "type": "printed|handwritten|dimension",\n'
-                        '    "confidence": "high|medium|low"\n'
-                        "  }\n"
-                        "]\n\n"
-                        "4. After extracting text, call image_to_piaf AGAIN with:\n"
-                        "   - Same image_path\n"
-                        "   - claude_text_json parameter containing your JSON array\n"
-                        "   - use_grid_overlay=True\n\n"
-                        "TIPS:\n"
-                        "- Look at the RED grid lines and cell labels (A1, A2, B1, etc.)\n"
-                        "- Identify which cell each text element falls into\n"
-                        "- Cell references are like Excel: row letter + column number\n"
-                        "- For rotated text: 90=vertical reading bottom-to-top, -90=vertical reading top-to-bottom"
-                    )
-                else:
-                    instructions = (
-                        f"HYBRID OCR PHASE 1 COMPLETE: Tesseract found {len(tesseract_results)} text regions.\n\n"
-                        "NOW PLEASE:\n"
-                        f"1. VIEW the image at: {image_file.absolute()}\n"
-                        f"2. Image dimensions: {img_width}x{img_height} pixels\n\n"
-                        "3. Extract ALL visible text and return a JSON array with this format:\n"
-                        "[\n"
-                        "  {\n"
-                        '    "text": "exact text content",\n'
-                        '    "x_percent": 25,  // horizontal position as % (0-100) from left\n'
-                        '    "y_percent": 10,  // vertical position as % (0-100) from top\n'
-                        '    "width_percent": 8,  // approximate width as % of image width\n'
-                        '    "height_percent": 3,  // approximate height as % of image height\n'
-                        '    "rotation_degrees": 0,  // 0=horizontal, 90=rotated clockwise, -90=counter-clockwise\n'
-                        '    "type": "printed|handwritten|dimension",\n'
-                        '    "confidence": "high|medium|low"\n'
-                        "  }\n"
-                        "]\n\n"
-                        "4. After extracting text, call image_to_piaf AGAIN with:\n"
-                        "   - Same image_path\n"
-                        "   - claude_text_json parameter containing your JSON array\n\n"
-                        "TIPS:\n"
-                        "- Include room labels, dimensions, title block text, annotations\n"
-                        "- For position, estimate: 'Kitchen' at center-left might be x_percent=30, y_percent=40\n"
-                        "- Dimensions like '5,55 m' should have type='dimension'\n"
-                        "- For rotated text: 90=vertical reading bottom-to-top, -90=vertical reading top-to-bottom\n"
-                        "- Your accurate text will be merged with Tesseract's accurate positions"
-                    )
-
-                # Build response
-                response = {
-                    "success": True,
-                    "phase": "text_extraction_needed",
-                    "tesseract_count": len(tesseract_results),
-                    "image_path": str(image_file.absolute()),
-                    "image_size": {"width": img_width, "height": img_height},
-                    "instructions": instructions,
-                    "message": "Phase 1 complete. Please view the image, extract text, then call again with claude_text_json."
-                }
-
-                # Add grid info if enabled
-                if grid_info:
-                    response["grid_overlay"] = grid_info
-                    response["message"] = "Phase 1 complete. View the GRID IMAGE and use cell references for text positions."
-
-                return json.dumps(response)
-
-            except Exception as e:
-                logger.warning(f"Tesseract failed, falling back to Claude-only: {e}")
-                # Continue without Tesseract - Claude will provide positions too
-
-        # ============================================================
-        # PHASE 2: Merge Claude's text with Tesseract's positions
+        # TEXT DETECTION: EasyOCR (primary) or Tesseract (fallback)
         # ============================================================
         merged_detected_texts = None
+
         if detect_text and claude_text_json:
+            # Manual override: user provided text positions directly
             try:
-                # Normalize: accept both JSON string and list of dicts
                 if isinstance(claude_text_json, str):
-                    claude_results = json.loads(claude_text_json)
+                    manual_results = json.loads(claude_text_json)
                 else:
-                    claude_results = claude_text_json  # Already a list
+                    manual_results = claude_text_json
 
-                # Load cached data for grid info
-                cached = load_cached_tesseract(str(image_file.absolute()))
+                # Convert manual results to DetectedText objects
+                merged_detected_texts = []
+                for item in manual_results:
+                    # Support both pixel and percent-based coordinates
+                    if 'x' in item and 'y' in item:
+                        x, y = int(item['x']), int(item['y'])
+                        w, h = int(item.get('width', 50)), int(item.get('height', 20))
+                    elif 'x_percent' in item and 'y_percent' in item:
+                        x = int(float(item['x_percent']) / 100 * img_width)
+                        y = int(float(item['y_percent']) / 100 * img_height)
+                        w = int(float(item.get('width_percent', 5)) / 100 * img_width)
+                        h = int(float(item.get('height_percent', 2)) / 100 * img_height)
+                    else:
+                        continue
 
-                # Check if grid cell references are used and convert to percentages
-                if use_grid_overlay and cached and cached.get('grid_info'):
-                    grid_info = cached['grid_info']
-                    grid_rows = grid_info['rows']
-                    grid_cols = grid_info['cols']
+                    merged_detected_texts.append(DetectedText(
+                        text=item.get('text', ''),
+                        x=x, y=y, width=w, height=h,
+                        confidence=80.0,
+                        is_dimension=item.get('type') == 'dimension',
+                        rotation_degrees=float(item.get('rotation_degrees', 0)),
+                    ))
+                logger.info(f"Manual text override: {len(merged_detected_texts)} items")
 
-                    # Convert grid_cell references to x_percent/y_percent
-                    for result in claude_results:
-                        if 'grid_cell' in result and result['grid_cell']:
-                            try:
-                                x_percent, y_percent = grid_cell_to_percent(
-                                    result['grid_cell'], grid_rows, grid_cols
-                                )
-                                result['x_percent'] = x_percent
-                                result['y_percent'] = y_percent
-                                # Default width/height if not provided
-                                if 'width_percent' not in result:
-                                    result['width_percent'] = 100.0 / grid_cols * 0.8
-                                if 'height_percent' not in result:
-                                    result['height_percent'] = 100.0 / grid_rows * 0.5
-                                logger.info(f"Converted grid cell {result['grid_cell']} to ({x_percent:.1f}%, {y_percent:.1f}%)")
-                            except ValueError as e:
-                                logger.warning(f"Invalid grid cell reference '{result.get('grid_cell')}': {e}")
-                elif use_grid_overlay:
-                    # Grid mode requested but no cached grid info - try to compute
-                    # This can happen if Phase 1 wasn't called or cache expired
-                    from tactile_core.core.grid_overlay import calculate_grid_density
-                    grid_rows, grid_cols = calculate_grid_density(img_width, img_height)
+            except (json.JSONDecodeError, Exception) as e:
+                logger.warning(f"Invalid claude_text_json, falling back to auto-detect: {e}")
+                merged_detected_texts = None
 
-                    for result in claude_results:
-                        if 'grid_cell' in result and result['grid_cell']:
-                            try:
-                                x_percent, y_percent = grid_cell_to_percent(
-                                    result['grid_cell'], grid_rows, grid_cols
-                                )
-                                result['x_percent'] = x_percent
-                                result['y_percent'] = y_percent
-                                if 'width_percent' not in result:
-                                    result['width_percent'] = 100.0 / grid_cols * 0.8
-                                if 'height_percent' not in result:
-                                    result['height_percent'] = 100.0 / grid_rows * 0.5
-                            except ValueError as e:
-                                logger.warning(f"Invalid grid cell reference '{result.get('grid_cell')}': {e}")
-
-                # Load cached Tesseract results
-
-                if cached and cached.get('results'):
-                    # Reconstruct DetectedText objects from cache
-                    tesseract_results = [
-                        DetectedText(
-                            text=r['text'],
-                            x=r['x'],
-                            y=r['y'],
-                            width=r['width'],
-                            height=r['height'],
-                            confidence=r['confidence'],
-                            is_dimension=r.get('is_dimension', False),
-                            rotation_degrees=r.get('rotation_degrees', 0.0),
-                            page_number=r.get('page_number', 1)
-                        )
-                        for r in cached['results']
-                    ]
-
-                    # Merge using hybrid detector
-                    hybrid_detector = HybridTextDetector(similarity_threshold=0.6)
-                    merged_detected_texts = hybrid_detector.merge(
-                        tesseract_results,
-                        claude_results,
-                        image_size=(img_width, img_height)
-                    )
-
-                    logger.info(f"Hybrid OCR: Merged {len(merged_detected_texts)} text items")
-                else:
-                    # No cached Tesseract results - use Claude's positions directly
-                    logger.warning("No cached Tesseract results, using Claude positions only")
-                    hybrid_detector = HybridTextDetector()
-                    merged_detected_texts = hybrid_detector._handle_unmatched(
-                        claude_results, (img_width, img_height)
-                    )
-
-            except json.JSONDecodeError as e:
-                logger.warning(f"Invalid claude_text_json: {e}")
+        if detect_text and not merged_detected_texts:
+            # Auto-detect text using EasyOCR (preferred) or Tesseract (fallback)
+            try:
+                detector = EasyOCRDetector(language='en', gpu=False)
+                source_image = Image.open(image_file)
+                merged_detected_texts = detector.detect_text(source_image)
+                logger.info(f"EasyOCR detected {len(merged_detected_texts)} text items")
             except Exception as e:
-                logger.warning(f"Hybrid merge failed: {e}")
+                logger.warning(f"EasyOCR failed, falling back to Tesseract: {e}")
+                try:
+                    text_config = TextDetectionConfig(
+                        enabled=True,
+                        language='eng',
+                        page_segmentation_mode=3,
+                        min_confidence=50,
+                        filter_dimensions=True
+                    )
+                    text_detector = TextDetector(config=text_config, logger=silent_logger)
+                    gray_image = Image.open(image_file).convert('L')
+                    merged_detected_texts = text_detector.detect_text(gray_image)
+                    logger.info(f"Tesseract fallback detected {len(merged_detected_texts)} text items")
+                except Exception as e2:
+                    logger.warning(f"Tesseract also failed: {e2}")
+                    # Continue without text detection
 
         # Generate output path if not specified
         if not output_path:
@@ -947,6 +1033,30 @@ async def image_to_piaf(
                 # Scale detected text coordinates to match
                 merged_detected_texts = processor.scale_detected_texts(merged_detected_texts, effective_scale_percent)
                 logger.info(f"Scaled {len(merged_detected_texts)} detected text coordinates")
+
+        # ============================================================
+        # RAINBOWTACT: Color-to-Tactile Pattern Conversion
+        # ============================================================
+        if color_to_tactile:
+            return await _process_rainbowtact(
+                processor=processor,
+                image_path_for_processing=image_path_for_processing,
+                image_file=image_file,
+                output_path=output_path,
+                effective_paper_size=effective_paper_size,
+                effective_threshold=effective_threshold,
+                preset=preset,
+                detect_text=detect_text,
+                braille_grade=braille_grade,
+                rainbowtact_num_colors=rainbowtact_num_colors,
+                merged_detected_texts=merged_detected_texts,
+                use_abbreviation_key=use_abbreviation_key,
+                force_abbreviation_key=force_abbreviation_key,
+                effective_scale_percent=effective_scale_percent,
+                zoom_applied=zoom_applied,
+                standards=standards,
+                silent_logger=silent_logger
+            )
 
         # If we have merged results from hybrid OCR, skip text detection in processor
         # (we already have the text, just need image processing)
@@ -1336,9 +1446,6 @@ async def image_to_piaf(
             message_parts.append("Image was tiled across multiple pages.")
         message_parts.append("Ready for PIAF printing.")
 
-        # Determine if hybrid OCR was used
-        hybrid_ocr_used = merged_detected_texts is not None and len(merged_detected_texts) > 0
-
         response = {
             "success": True,
             "output_file": str(final_output),
@@ -1352,7 +1459,6 @@ async def image_to_piaf(
             "preset_used": preset,
             "needs_tiling": needs_tiling,
             "detected_text_count": len(detected_texts_to_use),
-            "hybrid_ocr_used": hybrid_ocr_used,
             "message": " ".join(message_parts)
         }
 
@@ -1386,6 +1492,7 @@ async def list_presets() -> str:
     Returns:
         JSON string with list of presets and their settings
     """
+    _ensure_imports()
     try:
         preset_manager = PresetManager()
         presets_list = []
@@ -1438,6 +1545,7 @@ async def analyze_image(image_path: str) -> str:
     Returns:
         JSON string with image analysis and recommendations
     """
+    _ensure_imports()
     try:
         silent_logger = SilentLogger()
 
@@ -1592,6 +1700,7 @@ async def describe_image(
     Returns:
         JSON string with the structured description
     """
+    _ensure_imports()
     try:
         # Validate image path
         image_file = Path(image_path)
@@ -1681,6 +1790,7 @@ async def extract_text_with_vision(
     Returns:
         JSON with image info and extraction instructions for Claude's vision
     """
+    _ensure_imports()
     try:
         image_file = Path(image_path)
         if not image_file.exists():
@@ -1790,6 +1900,7 @@ async def assess_tactile_quality(
     Returns:
         JSON string with quality assessment criteria and suggestions
     """
+    _ensure_imports()
     try:
         from PIL import Image
 

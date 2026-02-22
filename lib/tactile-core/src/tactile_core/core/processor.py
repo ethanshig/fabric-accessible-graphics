@@ -14,6 +14,7 @@ from tactile_core.utils.logger import AccessibleLogger
 from tactile_core.utils.validators import validate_image_file
 from tactile_core.core.contrast import ContrastEnhancer
 from tactile_core.core.text_detector import TextDetector, TextDetectionConfig, DetectedText
+from tactile_core.core.rainbowtact import RainbowTactConverter, RainbowTactConfig, ColorRegion, TactilePattern
 
 
 class ImageProcessorError(Exception):
@@ -877,3 +878,86 @@ class ImageProcessor:
             raise
         except Exception as e:
             raise ImageProcessorError(f"Processing failed: {str(e)}") from e
+
+    def process_with_rainbowtact(
+        self,
+        input_path: str,
+        num_colors: int = 5,
+        detect_text: bool = True,
+        paper_size: str = 'letter',
+    ) -> Tuple[Image.Image, dict, List[ColorRegion], List[TactilePattern]]:
+        """
+        Process image using RainbowTact color-to-tactile conversion.
+
+        Loads the RGB image, runs text detection on a grayscale copy,
+        then converts colors to tactile patterns.
+
+        Args:
+            input_path: Path to input image
+            num_colors: Number of color clusters for K-means
+            detect_text: Whether to detect text
+            paper_size: Target paper size
+
+        Returns:
+            Tuple of (1-bit B&W image, metadata dict, color regions, tactile patterns)
+        """
+        try:
+            # Load as RGB for color analysis
+            image = self.load_image(input_path)
+            if image.mode != 'RGB':
+                image = image.convert('RGB')
+
+            # Detect text on grayscale copy (existing OCR pipeline)
+            detected_texts = []
+            if detect_text:
+                grayscale = self.convert_to_grayscale(image)
+                if not self.text_detector:
+                    try:
+                        text_config = self.config.get('text_detection', {})
+                        text_config['enabled'] = True
+                        self.text_detector = TextDetector(
+                            config=TextDetectionConfig(**text_config),
+                            logger=self.logger
+                        )
+                    except Exception as e:
+                        self.logger.warning(f"Text detection init failed: {e}")
+
+                if self.text_detector:
+                    try:
+                        detected_texts = self.text_detector.detect_text(grayscale)
+                    except Exception as e:
+                        self.logger.warning(f"Text detection failed: {e}")
+
+            # Run RainbowTact conversion on the color image
+            config = RainbowTactConfig(num_colors=num_colors)
+            converter = RainbowTactConverter(config)
+            bw_image, regions, patterns = converter.convert(image)
+
+            # Check density
+            density = self.calculate_density(bw_image)
+
+            # Check image size
+            fits, size_message = self.check_image_size(bw_image, paper_size)
+
+            metadata = {
+                'source_file': str(Path(input_path).name),
+                'original_size': image.size,
+                'original_mode': image.mode,
+                'threshold': None,
+                'enhancement': None,
+                'density_percentage': density,
+                'output_mode': bw_image.mode,
+                'needs_tiling': not fits,
+                'paper_size': paper_size,
+                'detected_texts': detected_texts,
+                'color_to_tactile': True,
+                'num_color_regions': len(regions),
+            }
+
+            self.logger.success("RainbowTact processing complete")
+            return bw_image, metadata, regions, patterns
+
+        except ImageProcessorError:
+            raise
+        except Exception as e:
+            raise ImageProcessorError(f"RainbowTact processing failed: {str(e)}") from e

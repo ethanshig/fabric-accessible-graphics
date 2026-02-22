@@ -93,43 +93,120 @@ Download from https://github.com/liblouis/liblouis/releases
 
 > **Note**: If Liblouis is not available, the system uses a simple ASCII-to-Braille converter. For full Grade 2 (contracted) Braille, Liblouis is required.
 
-## Step 4: Install the Python Library
+## Step 4: Install the Python Libraries
 
 ```bash
-# Install in development mode
+# Install TACT (image-to-tactile conversion)
 pip install -e ./lib/tactile-core
 
-# Or with MCP server support
+# Install TASC (programmatic Rhino design)
+pip install -e ./lib/tasc-core
+
+# Or with MCP server support for TACT
 pip install -e "./lib/tactile-core[mcp]"
 ```
 
 ## Step 5: Verify Installation
 
 ```bash
-# Check CLI version
-tactile --version
-# Expected: tactile, version 1.0.0
+# Check TACT CLI
+tact --version
+# Expected: tact, version 1.0.0
 
-# List available presets
-tactile list-presets
+# Check TASC CLI
+tasc version
+# Expected: TASC - Tactile Architecture Scripting Console v0.1.0
 
-# Test conversion with a sample image
-tactile image-to-piaf samples/Sketch_Test.jpg --verbose
+# List TACT presets
+tact presets
+
+# Test TACT conversion with a sample image
+tact samples/Sketch_Test.jpg --verbose
+
+# Test TASC site creation
+tasc site 200 150
+tasc describe
+tasc reset
 ```
 
 If all commands work, you're ready to go!
 
-## Step 6: Configure for PAI (Optional)
+## Step 5b: Install RhinoMCP (Optional - for live Rhino connection)
 
-If you're using PAI (Personal AI Infrastructure), the skills will auto-activate based on triggers:
+TASC can send geometry directly to Rhino in real-time via the RhinoMCP plugin. Additionally, the `rhinomcp` Python package provides an MCP server bridge so Claude Code can control Rhino directly with native tools (create/modify objects, booleans, viewport capture, etc.).
 
-- "convert to tactile" → TactileConversion
-- "generate tactile" → TactileGeneration
-- "describe this image" → AccessibleDescription
+### Install the Rhino plugin
 
-No additional configuration needed.
+1. Open **Rhino** (7 or newer)
+2. Go to **Tools > Package Manager**
+3. Search for **rhinomcp** (by Jingcheng Chen)
+4. Click **Install**, restart Rhino
+5. In Rhino's command line, type `MCPStart` to start the socket server (TCP port 1999)
 
-## Step 7: Configure MCP Server (Non-PAI Users)
+### Install the MCP server bridge
+
+```bash
+# Option A: Install directly in your venv (recommended)
+pip install rhinomcp
+
+# Option B: Use uvx (no install needed)
+# Requires uv: curl -LsSf https://astral.sh/uv/install.sh | sh
+uvx rhinomcp
+```
+
+### Configure the MCP server (for Claude Code)
+
+Add to your project's `.mcp.json` or Claude Code settings:
+
+**Standard (Rhino on same machine):**
+```json
+{
+    "mcpServers": {
+        "rhinomcp": {
+            "command": "/path/to/venv/bin/rhinomcp"
+        }
+    }
+}
+```
+
+**WSL2 (Rhino on Windows, Claude Code in WSL2):**
+
+The RhinoMCP plugin binds to `127.0.0.1:1999` on Windows, which is unreachable from WSL2. Set the `RHINO_MCP_HOST` env var to the WSL2 gateway IP:
+
+```json
+{
+    "mcpServers": {
+        "rhinomcp": {
+            "command": "/path/to/venv/bin/rhinomcp",
+            "env": {
+                "RHINO_MCP_HOST": "172.28.208.1",
+                "RHINO_MCP_PORT": "1999"
+            }
+        }
+    }
+}
+```
+
+> **Finding your WSL2 gateway IP:** Run `ip route show default` in WSL2. The IP after "via" is your gateway (e.g., `172.28.208.1`).
+
+> **One-time Windows setup:** Run these in an admin PowerShell to allow WSL2 to reach Rhino's port:
+> ```powershell
+> netsh interface portproxy add v4tov4 listenport=1999 listenaddress=0.0.0.0 connectport=1999 connectaddress=127.0.0.1
+> netsh advfirewall firewall add rule name="RhinoMCP" dir=in action=allow protocol=TCP localport=1999
+> ```
+
+### Verify the connection
+
+```bash
+# From your terminal (with venv active):
+tasc connect
+# Expected: Connected to Rhino via MCP socket at 127.0.0.1:1999
+# (or via WSL2 gateway: Connected to Rhino via MCP socket at 172.28.208.1:1999)
+```
+
+Without RhinoMCP, TASC still works fully offline -- text feedback, `.3dm` file export, and PIAF export all work without a Rhino connection.
+
+## Step 6: Configure MCP Server (Non-PAI Users)
 
 If you're using Claude Code without PAI:
 
@@ -153,16 +230,17 @@ If you're using Claude Code without PAI:
 
 ## Troubleshooting
 
-### "tactile: command not found"
+### "tact: command not found" or "tasc: command not found"
 
 Make sure your virtual environment is activated:
 ```bash
 source venv/bin/activate
 ```
 
-Or install globally:
+Or reinstall:
 ```bash
-pip install ./lib/tactile-core
+pip install -e ./lib/tactile-core   # for tact
+pip install -e ./lib/tasc-core      # for tasc
 ```
 
 ### "tesseract is not installed or not in PATH"
@@ -194,10 +272,12 @@ tactile image-to-piaf image.jpg --auto-reduce-density
 
 After installation:
 
-1. Try converting a sample: `tactile image-to-piaf samples/Sketch_Test.jpg`
-2. Explore presets: `tactile list-presets`
-3. Read the [README](README.md) for full feature documentation
-4. Check [VERIFY.md](VERIFY.md) to confirm everything works
+1. Try converting a sample: `tact samples/Sketch_Test.jpg`
+2. Explore presets: `tact presets`
+3. Try TASC: `tasc site 200 150 && tasc zone living 50 40 --at 10,10 && tasc describe`
+4. Read the [README](README.md) for full feature documentation
+5. Read [lib/tasc-core/README.md](lib/tasc-core/README.md) for TASC command reference
+6. Check [VERIFY.md](VERIFY.md) to confirm everything works
 
 ## Getting Help
 

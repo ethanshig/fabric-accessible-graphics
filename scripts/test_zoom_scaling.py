@@ -395,7 +395,7 @@ def test_cli_zoom_region(image_path: str, output_dir: Path) -> TestResult:
         # Run CLI command
         cmd = [
             sys.executable, '-m', 'tactile_core.cli',
-            'image-to-piaf',
+            'convert',
             str(image_path),
             '--output', str(output_path),
             '--zoom-region', '20,20,60,60',

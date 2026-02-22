@@ -130,7 +130,9 @@ Colors cannot be represented tactilely. Convert using:
 | Emphasis | Texture density variation |
 | Zone indication | Boundary lines with texture fill |
 
-CURRENT_LIMITATION: Automatic pattern detection not yet implemented. LLM should describe color-coded information in accompanying text description.
+THEORETICAL_BASIS: Way & Barner (1997) proposed automated color-to-texture mapping using K-means segmentation to divide images into color regions, then applying the four-color theorem (any planar map can be colored with four colors, no two adjacent regions sharing a color) to assign distinct tactile textures. With as few as four textures, any architectural plan's color-coded zones could be made tactilely distinguishable. This approach — mapping color regions to tactile texture fills — is a high-priority enhancement for the pipeline.
+
+CURRENT_LIMITATION: Automatic color-to-texture mapping not yet implemented. LLM should describe color-coded information in accompanying text description. Future implementation should use K-means segmentation + texture assignment per Way & Barner's method.
 
 ### Simplification Transparency
 
@@ -299,7 +301,7 @@ KEY_FEATURES:
 ### CLI Command Syntax
 
 ```bash
-tactile image-to-piaf INPUT_PATH [OPTIONS]
+tact INPUT_PATH [OPTIONS]
 ```
 
 ### Core Options
@@ -344,19 +346,19 @@ AVAILABLE_PRESETS: floor_plan, sketch, photograph, elevation, section, diagram, 
 
 ```bash
 # Floor plan with text detection and Grade 2 Braille
-tactile image-to-piaf floor-plan.jpg --preset floor_plan --detect-text --braille-grade 2 --verbose
+tact floor-plan.jpg --preset floor_plan --detect-text --braille-grade 2 --verbose
 
 # Structural diagram (clean lines, no enhancement)
-tactile image-to-piaf beam-diagram.png --preset technical_drawing --detect-text --braille-grade 2
+tact beam-diagram.png --preset technical_drawing --detect-text --braille-grade 2
 
 # Large site plan requiring tiling
-tactile image-to-piaf site-plan.pdf --preset site_plan --enable-tiling --detect-text --braille-grade 2
+tact site-plan.pdf --preset site_plan --enable-tiling --detect-text --braille-grade 2
 
 # Photograph with heavy contrast enhancement
-tactile image-to-piaf building-photo.jpg --preset photograph --detect-text --braille-grade 2 --verbose
+tact building-photo.jpg --preset photograph --detect-text --braille-grade 2 --verbose
 
 # Custom settings (override preset)
-tactile image-to-piaf sketch.jpg --preset sketch --threshold 120 --enhance-strength 1.5
+tact sketch.jpg --preset sketch --threshold 120 --enhance-strength 1.5
 ```
 
 ### LLM Invocation Pattern
@@ -365,7 +367,7 @@ When an LLM determines parameters, construct the command as:
 
 ```
 COMMAND_TEMPLATE:
-  tactile image-to-piaf "{input_path}" \
+  tact "{input_path}" \
     --preset {category_preset} \
     --detect-text \
     --braille-grade 2 \
@@ -529,7 +531,7 @@ PROPOSED_FIX: Describe gradients in text; consider contour lines for topography
 
 ```
 STANDARD_COMMAND:
-tactile image-to-piaf INPUT --preset PRESET --detect-text --braille-grade 2 --verbose
+tact INPUT --preset PRESET --detect-text --braille-grade 2 --verbose
 
 PRESET SELECTION:
   Plans/Sections -> floor_plan, section
