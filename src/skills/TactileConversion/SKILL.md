@@ -1,17 +1,7 @@
 ---
 name: TactileConversion
-description: Convert images to tactile-ready PDFs for PIAF printing using code-based processing
-triggers:
-  - convert to tactile
-  - make tactile version
-  - PIAF conversion
-  - convert for printing
-  - tactile PDF
-  - convert this image for PIAF
-  - make this accessible
+description: Convert images to tactile-ready PDFs for PIAF printing. USE WHEN convert to tactile, make tactile version, PIAF conversion, convert for printing, tactile PDF, convert this image for PIAF, make this accessible.
 context: fork
-tools:
-  - TactileConvert.ts
 ---
 
 # TactileConversion

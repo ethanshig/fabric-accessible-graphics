@@ -1,19 +1,7 @@
 ---
 name: TactileGeneration
-description: Generate tactile graphics using AI image generation when source images are too complex or unavailable
-triggers:
-  - generate tactile
-  - create tactile image
-  - simplify for tactile
-  - stratify this drawing
-  - stratify drawing
-  - tactile version of
-  - make this tactile
-  - recreate as tactile
-  - tactile graphic of
+description: Generate tactile graphics using AI when source images are too complex or unavailable. USE WHEN generate tactile, create tactile image, simplify for tactile, stratify this drawing, stratify drawing, tactile version of, make this tactile, recreate as tactile, tactile graphic of.
 context: fork
-tools:
-  - TactileGenerate.ts
 ---
 
 # TactileGeneration

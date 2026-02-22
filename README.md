@@ -1,7 +1,7 @@
 ---
 name: Radical Accessibility
-pack-id: ethanshig-radical-accessibility-v1.0.0
-version: 1.0.0
+pack-id: ethanshig-radical-accessibility-v1.1.0
+version: 1.1.0
 author: ethanshig
 description: Make architectural graphics accessible to blind and low-vision students through tactile conversion, AI generation, and rich descriptions
 type: skill-bundle
@@ -116,9 +116,13 @@ Three-layer descriptions:
 
 ```
 radical-accessibility/
-├── lib/tactile-core/          # Python library (pip-installable)
-│   ├── pyproject.toml
-│   └── src/tactile_core/
+├── lib/
+│   ├── tactile-core/          # TACT - image-to-tactile PDF conversion
+│   │   ├── pyproject.toml
+│   │   └── src/tactile_core/
+│   └── tasc-core/             # TASC - programmatic Rhino design CLI
+│       ├── pyproject.toml
+│       └── src/tasc_core/
 ├── src/
 │   ├── skills/                # PAI skill definitions
 │   │   ├── TactileConversion/
@@ -131,6 +135,15 @@ radical-accessibility/
 ├── samples/                   # Test images
 └── docs/                      # Documentation
 ```
+
+## The Two CLIs
+
+| CLI | Package | Purpose | Install |
+|-----|---------|---------|---------|
+| `tact` | `tactile-core` | Convert images to PIAF tactile PDFs | `pip install -e lib/tactile-core/` |
+| `tasc` | `tasc-core` | Programmatic Rhino design with accessible CLI | `pip install -e lib/tasc-core/` |
+
+See [lib/tasc-core/README.md](lib/tasc-core/README.md) for full TASC documentation.
 
 ## Optional Hooks (Learning System)
 
@@ -226,6 +239,8 @@ This toolkit is designed for screen-reader users:
 - Poppler (for PDF processing)
 - Liblouis (optional, for Grade 2 Braille)
 - Bun (optional, for hooks/learning system)
+- rhinomcp (optional, `pip install rhinomcp` — for Claude Code ↔ Rhino MCP bridge with native tools)
+- RhinoMCP Rhino plugin (optional — for live TASC ↔ Rhino viewport connection)
 
 See [INSTALL.md](INSTALL.md) for installation instructions.
 

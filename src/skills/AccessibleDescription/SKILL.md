@@ -1,14 +1,6 @@
 ---
 name: AccessibleDescription
-description: Generate detailed accessibility descriptions of architectural images using the Arch-Alt-Text framework
-triggers:
-  - describe this image
-  - describe this drawing
-  - what does this show
-  - explain this drawing
-  - accessibility description
-  - describe for accessibility
-  - what am I looking at
+description: Generate detailed accessibility descriptions of architectural images using Arch-Alt-Text. USE WHEN describe this image, describe this drawing, what does this show, explain this drawing, accessibility description, describe for accessibility, what am I looking at.
 context: fork
 ---
 

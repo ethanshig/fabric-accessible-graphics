@@ -56,3 +56,11 @@ secrets/
 **/api_key*
 **/apikey*
 **/*secret*
+
+# TASC state files
+.tasc_state.json
+.tasc_undo.json
+
+# Rhino files (root-level build artifacts)
+*.3dm
+*.3dmbak
