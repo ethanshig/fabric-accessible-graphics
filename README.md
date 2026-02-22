@@ -7,7 +7,7 @@ description: Make architectural graphics accessible to blind and low-vision stud
 type: skill-bundle
 purpose-type: [accessibility, architecture, tactile-graphics, education]
 platform: claude-code
-dependencies: [python3.10+, tesseract-ocr, poppler-utils]
+dependencies: [python3.10+]
 keywords: [accessibility, tactile, PIAF, braille, architecture, blind, low-vision]
 ---
 
@@ -15,15 +15,16 @@ keywords: [accessibility, tactile, PIAF, braille, architecture, blind, low-visio
 
 **Make architectural graphics accessible to blind and low-vision students.**
 
-A PAI Pack providing three skills for converting, generating, and describing architectural images for PIAF (Picture In A Flash) tactile printing.
+A PAI Pack providing four skills for converting, generating, describing, and designing architectural graphics for PIAF (Picture In A Flash) tactile printing.
 
-## The Three Skills
+## The Four Skills
 
 | Skill | Purpose | Use When |
 |-------|---------|----------|
 | **TactileConversion** | Process existing images into tactile PDFs | Source is clean, quick conversion needed |
 | **TactileGeneration** | AI-powered tactile image creation | Source is complex/cluttered, or creating from description |
 | **AccessibleDescription** | Rich verbal descriptions (Arch-Alt-Text) | Quick understanding without printing, remote access |
+| **AccessibleRhino** | Programmatic Rhino design via TASC CLI | Creating or modifying building layouts with accessible feedback |
 
 ## Quick Start
 
@@ -87,13 +88,49 @@ Three-layer descriptions:
 2. **Meso**: Composition, layout, relationships (4+ sentences)
 3. **Micro**: Details, dimensions, materials, analogies (8+ sentences)
 
+### AccessibleRhino
+
+Programmatic architectural design through the TASC (Tactile Architecture Scripting Console) CLI. Gives blind and low-vision architects direct control of Rhino site layouts with accessible text feedback.
+
+**Triggers**: "design in Rhino", "create floor plan", "place bay", "TASC command"
+
+TASC commands cover the full structural design workflow:
+
+| Command | Purpose |
+|---------|---------|
+| `tasc site` / `tasc grid` | Site boundary and structural grid |
+| `tasc zone` / `tasc bay` | Program zones and structural bays with columns |
+| `tasc corridor` / `tasc void` | Corridors and courtyards within bays |
+| `tasc label` | Text and Braille labels |
+| `tasc undo` / `tasc remove` | Undo last command or remove elements |
+| `tasc export piaf\|3dm\|text` | Export to tactile PDF, Rhino file, or text |
+
+See [lib/tasc-core/README.md](lib/tasc-core/README.md) for the full TASC CLI and DSL reference.
+
+## AI Installation
+
+This pack is designed for AI-assisted installation. When Claude Code opens this repository:
+
+1. It reads `.claude.md` for project context and capabilities
+2. It reads `src/skills/*/SKILL.md` for available skills and triggers
+3. It reads `.claude/CLAUDE.md` for screen-reader-specific interaction rules
+
+To install the Python libraries:
+
+```bash
+pip install -e lib/tactile-core/    # TACT: image-to-tactile conversion
+pip install -e lib/tasc-core/       # TASC: programmatic Rhino design
+```
+
+For human setup instructions, see [INSTALL.md](INSTALL.md).
+
 ## Features
 
 ### Core Capabilities
 
 - **High-contrast processing** - Convert to pure black/white optimized for PIAF
 - **10 optimized presets** - Floor plans, sketches, sections, photographs, etc.
-- **Text detection** - OCR with Tesseract to identify labels and dimensions
+- **Text detection** - OCR with EasyOCR to identify labels and dimensions
 - **Braille conversion** - Grade 1 and Grade 2 Braille using Liblouis
 - **Auto-scaling** - Enlarge images so Braille labels fit in original text boxes
 - **Abbreviation keys** - Generate key pages for labels that don't fit
@@ -127,7 +164,8 @@ radical-accessibility/
 │   ├── skills/                # PAI skill definitions
 │   │   ├── TactileConversion/
 │   │   ├── TactileGeneration/
-│   │   └── AccessibleDescription/
+│   │   ├── AccessibleDescription/
+│   │   └── AccessibleRhino/
 │   ├── tools/                 # TypeScript tool wrappers
 │   ├── hooks/                 # Optional hooks
 │   └── shared/                # Shared guidelines
@@ -235,12 +273,12 @@ This toolkit is designed for screen-reader users:
 ## Requirements
 
 - Python 3.10+
-- Tesseract OCR (for text detection)
-- Poppler (for PDF processing)
+- EasyOCR (for text detection — installed via pip, no system package needed)
 - Liblouis (optional, for Grade 2 Braille)
+- Poppler (optional, for multi-page PDF input — `apt install poppler-utils`)
 - Bun (optional, for hooks/learning system)
-- rhinomcp (optional, `pip install rhinomcp` — for Claude Code ↔ Rhino MCP bridge with native tools)
-- RhinoMCP Rhino plugin (optional — for live TASC ↔ Rhino viewport connection)
+- rhinomcp (optional, `pip install rhinomcp` — for Claude Code to Rhino MCP bridge)
+- RhinoMCP Rhino plugin (optional — for live TASC to Rhino viewport connection)
 
 See [INSTALL.md](INSTALL.md) for installation instructions.
 
