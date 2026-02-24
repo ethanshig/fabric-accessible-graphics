@@ -21,8 +21,8 @@ pip --version
 ## Step 1: Clone the Repository
 
 ```bash
-git clone https://github.com/ethanshig/radical-accessibility.git
-cd radical-accessibility
+git clone https://github.com/ethanshig/pai-radical-accessibility.git
+cd pai-radical-accessibility
 ```
 
 ## Step 2: Create Virtual Environment (Recommended)
@@ -41,7 +41,13 @@ venv\Scripts\activate
 
 ## Step 3: Install System Dependencies
 
-### Tesseract OCR (Required for text detection)
+### Text Detection (EasyOCR — installed automatically)
+
+EasyOCR is the primary text detection engine and is installed automatically with `pip install -e ./lib/tactile-core`. No system packages needed. First run downloads a ~100MB language model.
+
+### Tesseract OCR (Optional — fallback text detection)
+
+Only needed if EasyOCR is unavailable (e.g., environments without PyTorch).
 
 **Ubuntu/Debian/WSL:**
 ```bash
@@ -57,7 +63,9 @@ brew install tesseract
 **Windows:**
 Download from https://github.com/UB-Mannheim/tesseract/wiki
 
-### Poppler (Required for PDF processing)
+### Poppler (Optional — for multi-page PDF input)
+
+Only needed if you want to convert multi-page PDF files as input.
 
 **Ubuntu/Debian/WSL:**
 ```bash
@@ -72,7 +80,7 @@ brew install poppler
 **Windows:**
 Download from https://github.com/oschwartz10612/poppler-windows/releases and add to PATH.
 
-### Liblouis (Optional - for Grade 2 Braille)
+### Liblouis (Optional — for Grade 2 Braille)
 
 **Ubuntu/Debian/WSL:**
 ```bash
@@ -243,11 +251,15 @@ pip install -e ./lib/tactile-core   # for tact
 pip install -e ./lib/tasc-core      # for tasc
 ```
 
-### "tesseract is not installed or not in PATH"
+### Text detection not working
 
-Install Tesseract (see Step 3) and verify:
+EasyOCR is the primary engine and installs with pip. If it fails (e.g., PyTorch issue), install Tesseract as fallback:
 ```bash
+# Check if Tesseract is available
 tesseract --version
+
+# Install if needed (Ubuntu/WSL)
+sudo apt-get install tesseract-ocr
 ```
 
 ### "Unable to get page count. Is poppler installed?"
