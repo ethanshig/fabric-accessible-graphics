@@ -145,13 +145,13 @@ braille:
 
   # Font settings for rendering Braille
   font_name: "DejaVu Sans"  # Font that supports Unicode Braille (U+2800-U+28FF)
-  font_size: 10             # Point size for Braille text in PDF
+  font_size: 24             # BANA standard: 6.2mm cell-to-cell spacing
   font_color: "black"       # Color for Braille labels
 
   # Label placement
   placement: "overlay"      # 'overlay' = on image, 'margin' = in margins (future feature)
   offset_x: 5               # Horizontal offset from original text position (pixels)
-  offset_y: -10             # Vertical offset from original text (pixels, negative = above text)
+  offset_y: -24             # Vertical offset from original text (pixels, negative = above text)
 
   # Label constraints
   max_label_length: 30      # Maximum Braille characters per label

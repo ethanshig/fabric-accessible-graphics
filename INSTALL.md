@@ -265,7 +265,7 @@ This usually means the font doesn't support Braille Unicode. The library uses De
 
 If you see density warnings, use:
 ```bash
-tactile image-to-piaf image.jpg --auto-reduce-density
+tact image-to-piaf image.jpg --auto-reduce-density
 ```
 
 ## What's Next?

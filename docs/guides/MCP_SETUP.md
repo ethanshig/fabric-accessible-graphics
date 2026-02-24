@@ -17,9 +17,9 @@ MCP (Model Context Protocol) allows Claude to interact with local tools on your 
 The MCP server is installed automatically with the toolkit. Verify it's available:
 
 ```bash
-cd /mnt/c/Users/ethan/fabric-accessible-graphics
+cd /path/to/pai-radical-accessibility
 source venv/bin/activate
-which tactile-mcp
+which tact-mcp
 ```
 
 ## Configuration
@@ -32,7 +32,7 @@ Add this to your Claude Code MCP settings (typically in `~/.config/claude-code/s
 {
   "mcpServers": {
     "tactile": {
-      "command": "/mnt/c/Users/ethan/fabric-accessible-graphics/venv/bin/tactile-mcp",
+      "command": "./venv/bin/tact-mcp",
       "args": []
     }
   }
@@ -45,7 +45,7 @@ Or using Python directly:
 {
   "mcpServers": {
     "tactile": {
-      "command": "/mnt/c/Users/ethan/fabric-accessible-graphics/venv/bin/python",
+      "command": "./venv/bin/python",
       "args": ["-m", "tactile_core.mcp_server.server"]
     }
   }
@@ -60,7 +60,7 @@ For Claude Desktop, add to `~/.config/Claude/claude_desktop_config.json`:
 {
   "mcpServers": {
     "tactile": {
-      "command": "/mnt/c/Users/ethan/fabric-accessible-graphics/venv/bin/tactile-mcp"
+      "command": "./venv/bin/tact-mcp"
     }
   }
 }
@@ -236,14 +236,14 @@ Check that the virtual environment is activated and dependencies are installed:
 ```bash
 source venv/bin/activate
 pip install mcp>=1.0.0
-pip install -e .
+pip install -e ./lib/tactile-core
 ```
 
 ### Tools not appearing in Claude
 
 1. Restart Claude Code/Desktop after changing MCP configuration
 2. Check the server path is correct
-3. Verify the server can start: `tactile-mcp`
+3. Verify the server can start: `tact-mcp`
 
 ### Conversion fails
 
@@ -272,7 +272,7 @@ Or add it to the MCP server configuration:
 {
   "mcpServers": {
     "tactile": {
-      "command": "/mnt/c/Users/ethan/fabric-accessible-graphics/venv/bin/tactile-mcp",
+      "command": "./venv/bin/tact-mcp",
       "env": {
         "ANTHROPIC_API_KEY": "your-api-key-here"
       }

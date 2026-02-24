@@ -1,17 +1,17 @@
 ---
-name: Radical Accessibility
-pack-id: ethanshig-radical-accessibility-v1.1.0
+name: pai-radical-accessibility
+pack-id: pai-radical-accessibility-v1.1.0
 version: 1.1.0
 author: ethanshig
 description: Make architectural graphics accessible to blind and low-vision students through tactile conversion, AI generation, and rich descriptions
 type: skill-bundle
 purpose-type: [accessibility, architecture, tactile-graphics, education]
-platform: claude-code
+platform: any
 dependencies: [python3.10+]
 keywords: [accessibility, tactile, PIAF, braille, architecture, blind, low-vision]
 ---
 
-# Radical Accessibility
+# pai-radical-accessibility
 
 **Make architectural graphics accessible to blind and low-vision students.**
 
@@ -34,10 +34,10 @@ cd radical-accessibility
 pip install -e ./lib/tactile-core
 
 # Convert an image
-tactile image-to-piaf floor-plan.jpg --preset floor_plan --verbose
+tact image-to-piaf floor-plan.jpg --preset floor_plan --verbose
 
 # With Braille labels
-tactile image-to-piaf plan.jpg --detect-text --braille-grade 2
+tact image-to-piaf plan.jpg --detect-text --braille-grade 2
 ```
 
 See [INSTALL.md](INSTALL.md) for complete installation instructions.
@@ -52,16 +52,16 @@ Convert existing images to tactile-ready PDFs using code-based processing.
 
 ```bash
 # Basic conversion
-tactile image-to-piaf floor-plan.jpg
+tact image-to-piaf floor-plan.jpg
 
 # With preset for optimal settings
-tactile image-to-piaf sketch.png --preset sketch
+tact image-to-piaf sketch.png --preset sketch
 
 # With Braille labels
-tactile image-to-piaf plan.jpg --detect-text --braille-grade 2
+tact image-to-piaf plan.jpg --detect-text --braille-grade 2
 
 # Automatic density reduction for complex images
-tactile image-to-piaf dense-drawing.jpg --auto-reduce-density
+tact image-to-piaf dense-drawing.jpg --auto-reduce-density
 ```
 
 **Available Presets**: floor_plan, section, elevation, site_plan, sketch, diagram, technical_drawing, photograph, presentation, detail_drawing
@@ -228,7 +228,7 @@ See [mcp/README.md](mcp/README.md) for details.
 Convert an image to PIAF-ready PDF format.
 
 ```bash
-tactile image-to-piaf IMAGE [OPTIONS]
+tact image-to-piaf IMAGE [OPTIONS]
 ```
 
 Key options:
@@ -248,7 +248,7 @@ Key options:
 Batch convert multiple images.
 
 ```bash
-tactile batch INPUT_DIR OUTPUT_DIR [OPTIONS]
+tact batch INPUT_DIR OUTPUT_DIR [OPTIONS]
 ```
 
 ### list-presets
@@ -256,7 +256,7 @@ tactile batch INPUT_DIR OUTPUT_DIR [OPTIONS]
 Show available conversion presets.
 
 ```bash
-tactile list-presets
+tact list-presets
 ```
 
 ## Accessibility Design

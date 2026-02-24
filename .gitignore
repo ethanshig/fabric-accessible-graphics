@@ -61,6 +61,15 @@ secrets/
 .tasc_state.json
 .tasc_undo.json
 
+# MCP config (contains local paths)
+.mcp.json
+
+# Test output
+test_output/
+
+# Development journal (local archive)
+.claude/development-journal.md
+
 # Rhino files (root-level build artifacts)
 *.3dm
 *.3dmbak

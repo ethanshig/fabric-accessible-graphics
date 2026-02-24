@@ -248,9 +248,9 @@ class TactileConverter:
             grade=int(params.braille_grade),
             placement=params.braille_placement,
             font_name=braille_config_dict.get('font_name', 'DejaVu Sans'),
-            font_size=braille_config_dict.get('font_size', 10),
+            font_size=braille_config_dict.get('font_size', 24),
             offset_x=braille_config_dict.get('offset_x', 5),
-            offset_y=braille_config_dict.get('offset_y', -10),
+            offset_y=braille_config_dict.get('offset_y', -24),
             max_label_length=braille_config_dict.get('max_label_length', 30),
             truncate_suffix=braille_config_dict.get('truncate_suffix', '...'),
             font_color=braille_config_dict.get('font_color', 'black'),
@@ -459,7 +459,8 @@ class TactileConverter:
                         braille_labels, key_entries = braille_converter.create_braille_labels(
                             texts_to_use,
                             generate_key=True,
-                            detected_text_widths=detected_text_widths if not params.force_abbreviation_key else None
+                            detected_text_widths=detected_text_widths if not params.force_abbreviation_key else None,
+                            image_size=processed_image.size
                         )
                     else:
                         braille_labels, symbol_key_entries = braille_converter.create_braille_labels(texts_to_use)
@@ -643,7 +644,8 @@ class TactileConverter:
                         braille_labels, key_entries = braille_converter.create_braille_labels(
                             detected_texts,
                             generate_key=True,
-                            detected_text_widths=detected_text_widths if not params.force_abbreviation_key else None
+                            detected_text_widths=detected_text_widths if not params.force_abbreviation_key else None,
+                            image_size=processed_image.size
                         )
                     else:
                         braille_labels, _ = braille_converter.create_braille_labels(detected_texts)
@@ -892,7 +894,8 @@ class TactileConverter:
 
                         braille_labels, page_keys = braille_converter.create_braille_labels(
                             page_detected_texts,
-                            generate_key=params.use_abbreviation_key
+                            generate_key=params.use_abbreviation_key,
+                            image_size=processed_image.size
                         )
 
                         if braille_labels:
@@ -1065,7 +1068,8 @@ class TactileConverter:
                     try:
                         region_labels_result, region_keys = braille_converter.create_braille_labels(
                             region_metadata['detected_texts'],
-                            generate_key=params.use_abbreviation_key
+                            generate_key=params.use_abbreviation_key,
+                            image_size=region_processed.size
                         )
                         region_braille_labels = region_labels_result or []
                         total_braille_labels += len(region_braille_labels)

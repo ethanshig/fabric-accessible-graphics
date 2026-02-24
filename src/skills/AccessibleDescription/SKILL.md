@@ -131,3 +131,16 @@ A hallway extends north from near the entry, leading to two bedrooms and a bathr
 1. Describe any specific room in more detail?
 2. Convert this to a tactile graphic for PIAF printing?
 3. Explain any architectural terms used?
+
+## Examples
+
+```
+User: "Describe this floor plan"
+→ Generates Macro/Meso/Micro description following Arch-Alt-Text framework
+
+User: "Give me a brief description of this section drawing"
+→ Generates concise overview with key structural relationships
+
+User: "What does this site plan show?"
+→ Identifies building footprints, paths, landscape, and spatial organization
+```

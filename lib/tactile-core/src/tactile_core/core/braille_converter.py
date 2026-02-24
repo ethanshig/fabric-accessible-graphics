@@ -12,9 +12,9 @@ from tactile_core.utils.logger import AccessibleLogger
 
 # Braille rendering constants (at 300 DPI)
 BRAILLE_DPI = 300
-BRAILLE_FONT_SIZE_POINTS = 10
-BRAILLE_FONT_SIZE_PX = BRAILLE_FONT_SIZE_POINTS * (BRAILLE_DPI / 72)  # ~41.67
-BRAILLE_CHAR_WIDTH_PX = BRAILLE_FONT_SIZE_PX * 0.6  # ~25 pixels per character
+BRAILLE_FONT_SIZE_POINTS = 24  # BANA standard: 6.2mm cell-to-cell
+BRAILLE_FONT_SIZE_PX = BRAILLE_FONT_SIZE_POINTS * (BRAILLE_DPI / 72)  # ~100 px
+BRAILLE_CHAR_WIDTH_PX = BRAILLE_FONT_SIZE_PX * 0.6  # ~60 pixels per character
 
 __all__ = [
     'BrailleConversionError',
@@ -58,10 +58,10 @@ class BrailleConfig:
     enabled: bool = False
     grade: int = 1
     font_name: str = "DejaVu Sans"
-    font_size: int = 10
+    font_size: int = 24
     placement: str = "overlay"
     offset_x: int = 5
-    offset_y: int = -10
+    offset_y: int = -24
     max_label_length: int = 30
     truncate_suffix: str = "..."
     font_color: str = "black"
@@ -355,10 +355,7 @@ class BrailleConverter:
             Estimated width in pixels
         """
         # Convert font size from points to pixels at 300 DPI
-        # 1 point = 1/72 inch, at 300 DPI: 1 point = 300/72 ≈ 4.17 pixels
-        DPI = 300
-        POINTS_PER_INCH = 72
-        font_size_px = self.config.font_size * (DPI / POINTS_PER_INCH)
+        font_size_px = self.config.font_size * (BRAILLE_DPI / 72)
 
         # Approximate: each Braille character is roughly 0.6 * font_size wide
         char_width = font_size_px * 0.6
@@ -454,9 +451,7 @@ class BrailleConverter:
         width = label.width or self._estimate_label_width(label.braille_text)
 
         # Convert font size from points to pixels at 300 DPI for height
-        DPI = 300
-        POINTS_PER_INCH = 72
-        height = int(self.config.font_size * (DPI / POINTS_PER_INCH))
+        height = int(self.config.font_size * (BRAILLE_DPI / 72))
 
         # Try original position first
         original_box = (label.x, label.y, width, height)
@@ -502,9 +497,7 @@ class BrailleConverter:
             return False
 
         # Convert font size from points to pixels at 300 DPI for height calculation
-        DPI = 300
-        POINTS_PER_INCH = 72
-        font_size_px = self.config.font_size * (DPI / POINTS_PER_INCH)
+        font_size_px = self.config.font_size * (BRAILLE_DPI / 72)
 
         label_right = label.x + label.width
         label_bottom = label.y + font_size_px
@@ -540,7 +533,8 @@ class BrailleConverter:
         self,
         detected_texts: List[DetectedText],
         generate_key: bool = False,
-        detected_text_widths: Optional[Dict[str, int]] = None
+        detected_text_widths: Optional[Dict[str, int]] = None,
+        image_size: Optional[Tuple[int, int]] = None
     ) -> Union[Tuple[List[BrailleLabel], List[SymbolKeyEntry]], Tuple[List[BrailleLabel], List[KeyEntry]]]:
         """
         Convert detected texts to positioned Braille labels.
@@ -558,6 +552,8 @@ class BrailleConverter:
             detected_texts: List of DetectedText objects from text detection
             generate_key: If True, generate abbreviation key for labels that don't fit
             detected_text_widths: Optional dict mapping text to original bounding box width
+            image_size: Optional (width, height) in pixels. When provided with generate_key,
+                        labels that would extend past the image edge are abbreviated.
 
         Returns:
             When generate_key=False:
@@ -587,9 +583,7 @@ class BrailleConverter:
         key_letter_index = 0  # Track next letter for key generation
 
         # Convert font size from points to pixels for height calculation
-        DPI = 300
-        POINTS_PER_INCH = 72
-        label_height = int(self.config.font_size * (DPI / POINTS_PER_INCH))
+        label_height = int(self.config.font_size * (BRAILLE_DPI / 72))
 
         for detected in detected_texts:
             # Truncate long text
@@ -618,7 +612,9 @@ class BrailleConverter:
                 final_label_width = label_width
 
                 if generate_key:
-                    # Check if Braille text will fit in original bounding box
+                    needs_abbreviation = False
+
+                    # Check 1: Braille text wider than original bounding box
                     original_width = None
                     if detected_text_widths and detected.text in detected_text_widths:
                         original_width = detected_text_widths[detected.text]
@@ -626,32 +622,39 @@ class BrailleConverter:
                         original_width = detected.width
 
                     if original_width is not None:
-                        # Calculate Braille width using the constant
                         braille_width = len(braille_text) * BRAILLE_CHAR_WIDTH_PX
-
                         if braille_width > original_width:
-                            # Braille doesn't fit - use abbreviation letter
-                            letter = self._get_next_key_letter(key_letter_index)
-                            key_letter_index += 1
+                            needs_abbreviation = True
 
-                            # Convert letter to Braille (with capital indicator)
-                            letter_braille = self.convert_text(letter)
+                    # Check 2: Label would bleed past image edge
+                    if not needs_abbreviation and image_size is not None:
+                        img_w, img_h = image_size
+                        if label_x + label_width > img_w or label_y + label_height > img_h:
+                            needs_abbreviation = True
 
-                            # Create key entry
-                            key_entries.append(KeyEntry(
-                                letter=letter,
-                                original_text=detected.text,
-                                braille_full=braille_text
-                            ))
+                    if needs_abbreviation:
+                        # Braille doesn't fit - use abbreviation letter
+                        letter = self._get_next_key_letter(key_letter_index)
+                        key_letter_index += 1
 
-                            # Use abbreviated label
-                            final_braille_text = letter_braille
-                            final_original_text = letter
-                            final_label_width = self._estimate_label_width(letter_braille)
+                        # Convert letter to Braille (with capital indicator)
+                        letter_braille = self.convert_text(letter)
 
-                            self.logger.info(
-                                f"Using key letter '{letter}' for: {detected.text[:20]}..."
-                            )
+                        # Create key entry
+                        key_entries.append(KeyEntry(
+                            letter=letter,
+                            original_text=detected.text,
+                            braille_full=braille_text
+                        ))
+
+                        # Use abbreviated label
+                        final_braille_text = letter_braille
+                        final_original_text = letter
+                        final_label_width = self._estimate_label_width(letter_braille)
+
+                        self.logger.info(
+                            f"Using key letter '{letter}' for: {detected.text[:20]}..."
+                        )
 
                 # Create initial label
                 label = BrailleLabel(

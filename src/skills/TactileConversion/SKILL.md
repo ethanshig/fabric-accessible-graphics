@@ -32,16 +32,16 @@ Use **TactileGeneration** instead when:
 
 ```bash
 # Basic conversion
-tactile image-to-piaf floor-plan.jpg
+tact image-to-piaf floor-plan.jpg
 
 # With preset
-tactile image-to-piaf sketch.png --preset sketch
+tact image-to-piaf sketch.png --preset sketch
 
 # With Braille labels
-tactile image-to-piaf plan.jpg --detect-text --braille-grade 2
+tact image-to-piaf plan.jpg --detect-text --braille-grade 2
 
 # Auto-fix high density
-tactile image-to-piaf dense.jpg --auto-reduce-density
+tact image-to-piaf dense.jpg --auto-reduce-density
 ```
 
 ## Available Presets
@@ -77,12 +77,25 @@ Execute: `Workflows/ConvertImage.md`
 
 ## Tool
 
-Uses: `tools/TactileConvert.ts` which calls the `tactile` CLI from the `tactile-core` Python library.
+Uses: `tools/TactileConvert.ts` which calls the `tact` CLI from the `tactile-core` Python library.
 
 ## Context Files
 
 Load before complex conversions:
 - `../shared/TactileGuidelines.md` - PIAF technical specifications
+
+## Examples
+
+```bash
+# Convert a floor plan with preset and Braille labels
+tact image-to-piaf floor-plan.jpg --preset floor_plan --detect-text --braille-grade 2 --verbose
+
+# Batch convert a folder of sketches
+tact batch ./sketches ./output --preset sketch --detect-text --verbose
+
+# Convert with zoom to a specific region
+tact image-to-piaf plan.jpg --preset floor_plan --zoom-region 25,30,50,40 --verbose
+```
 
 ## Output
 

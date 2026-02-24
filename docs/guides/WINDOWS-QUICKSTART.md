@@ -10,7 +10,7 @@ This toolkit needs to run in **WSL (Windows Subsystem for Linux)**, not PowerShe
 
 1. **In PowerShell or Command Prompt:**
    ```powershell
-   cd C:\Users\ethan\fabric-accessible-graphics
+   cd C:\Users\YourName\pai-radical-accessibility
    .\run.ps1
    ```
 
@@ -30,7 +30,7 @@ This toolkit needs to run in **WSL (Windows Subsystem for Linux)**, not PowerShe
 
 3. **Navigate to the project:**
    ```bash
-   cd /mnt/c/Users/ethan/fabric-accessible-graphics
+   cd /mnt/c/Users/YourName/pai-radical-accessibility
    ```
 
 4. **Run the start script:**
@@ -43,8 +43,8 @@ This toolkit needs to run in **WSL (Windows Subsystem for Linux)**, not PowerShe
    Activating virtual environment...
 
    Environment activated! You can now use:
-     tactile info
-     tactile image-to-piaf [IMAGE]
+     tact info
+     tact image-to-piaf [IMAGE]
 
    To deactivate when done, type: deactivate
    ```
@@ -53,13 +53,13 @@ This toolkit needs to run in **WSL (Windows Subsystem for Linux)**, not PowerShe
 
 ```bash
 # See what it does
-tactile info
+tact info
 
 # Convert an image
-tactile image-to-piaf my-image.jpg --verbose
+tact image-to-piaf my-image.jpg --verbose
 
 # Get help
-tactile --help
+tact --help
 ```
 
 ## Common Questions
@@ -75,7 +75,7 @@ A: No, the toolkit was built for Linux/WSL. The `run.ps1` script is just a short
 
 **Q: Where are my Windows files in WSL?**
 A: Windows C: drive is at `/mnt/c/` in WSL
-   - `C:\Users\ethan\` = `/mnt/c/Users/ethan/` in WSL
+   - `C:\Users\YourName\` = `/mnt/c/Users/YourName/` in WSL
 
 **Q: How do I exit WSL?**
 A: Type `exit` or close the terminal window
@@ -89,7 +89,7 @@ A: Type `exit` or close the terminal window
 **Error: "No such file or directory"**
 - Make sure you're in the right directory:
   ```bash
-  cd /mnt/c/Users/ethan/fabric-accessible-graphics
+  cd /mnt/c/Users/YourName/pai-radical-accessibility
   pwd  # Shows current directory
   ```
 
@@ -108,5 +108,5 @@ Once you're in WSL with the environment activated, read:
 
 Or just try it:
 ```bash
-tactile info
+tact info
 ```

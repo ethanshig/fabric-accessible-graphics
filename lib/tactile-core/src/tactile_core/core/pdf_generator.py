@@ -20,7 +20,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 
 from tactile_core.utils.logger import AccessibleLogger
 from tactile_core.utils.validators import validate_output_path, resolve_wsl_path, verify_file_exists
-from tactile_core.core.braille_converter import BrailleConverter, BrailleConfig, KeyEntry, BRAILLE_FONT_SIZE_POINTS
+from tactile_core.core.braille_converter import BrailleConverter, BrailleConfig, BrailleLabel, KeyEntry, BRAILLE_DPI, BRAILLE_FONT_SIZE_POINTS
 
 
 class PDFGeneratorError(Exception):
@@ -137,7 +137,7 @@ class PIAFPDFGenerator:
                 enabled=True,
                 grade=2,  # Use Grade 2 (contracted) for shorter output
                 font_name=self.config.get('braille', {}).get('font_name', 'DejaVu Sans'),
-                font_size=12
+                font_size=BRAILLE_FONT_SIZE_POINTS
             )
             return BrailleConverter(braille_config, self.logger)
         except Exception as e:
@@ -302,7 +302,16 @@ class PIAFPDFGenerator:
             if braille_labels:
                 # Calculate scale factor from image pixels to PDF inches
                 scale_factor = img_width / image.size[0]
-                self._add_braille_labels(c, braille_labels, scale_factor, x_offset, y_offset)
+
+                # Filter labels that would bleed off page edge → abbreviate to key
+                if key_entries is not None and braille_converter:
+                    braille_labels, key_entries = self._filter_overflow_labels(
+                        braille_labels, key_entries, braille_converter,
+                        scale_factor, x_offset, page_width_pts
+                    )
+
+                self._add_braille_labels(c, braille_labels, scale_factor, x_offset, y_offset,
+                                        page_width_pts, page_height_pts)
 
             # Add registration mark for sticker workflow alignment
             if sticker_workflow:
@@ -359,8 +368,84 @@ class PIAFPDFGenerator:
         except Exception as e:
             raise PDFGeneratorError(f"Failed to generate PDF: {str(e)}") from e
 
+    def _filter_overflow_labels(
+        self,
+        labels: list,
+        key_entries: List[KeyEntry],
+        braille_converter,
+        scale_factor: float,
+        x_offset: float,
+        page_width_pts: float
+    ) -> tuple:
+        """
+        Check each label's rendered PDF position. Labels that would extend
+        past the right page edge are replaced with single-letter abbreviations
+        and added to the abbreviation key.
+
+        Returns:
+            Tuple of (filtered_labels, updated_key_entries)
+        """
+        # Braille font metrics for width estimation
+        braille_config = self.config.get('braille', {})
+        font_name = braille_config.get('font_name', 'DejaVu Sans')
+        font_size = BRAILLE_FONT_SIZE_POINTS
+
+        # We need a temporary canvas to measure string widths
+        # Use stringWidth from reportlab directly
+        from reportlab.pdfbase.pdfmetrics import stringWidth
+
+        # Track next key letter index (continue from existing entries)
+        next_letter_idx = len(key_entries)
+        filtered = []
+        overflow_count = 0
+
+        for label in labels:
+            # Compute PDF x position (same math as _add_braille_labels)
+            pdf_x = label.x * scale_factor * inch + x_offset
+            label_width_pts = stringWidth(label.braille_text, font_name, font_size)
+
+            if pdf_x + label_width_pts > page_width_pts and len(label.braille_text) > 3:
+                # This label overflows and isn't already a short abbreviation
+                if next_letter_idx < 26:
+                    letter = chr(ord('A') + next_letter_idx)
+                else:
+                    first = chr(ord('A') + (next_letter_idx // 26) - 1)
+                    second = chr(ord('A') + (next_letter_idx % 26))
+                    letter = first + second
+                next_letter_idx += 1
+
+                letter_braille = braille_converter.convert_text(letter)
+
+                # Add to key
+                key_entries.append(KeyEntry(
+                    letter=letter,
+                    original_text=label.original_text,
+                    braille_full=label.braille_text
+                ))
+
+                # Replace label text with abbreviated version
+                filtered.append(BrailleLabel(
+                    braille_text=letter_braille,
+                    x=label.x,
+                    y=label.y,
+                    original_text=letter,
+                    width=braille_converter._estimate_label_width(letter_braille),
+                    rotation_degrees=label.rotation_degrees
+                ))
+                overflow_count += 1
+            else:
+                filtered.append(label)
+
+        if overflow_count > 0:
+            self.logger.info(
+                f"Abbreviated {overflow_count} label(s) that would overflow page edge"
+            )
+
+        return filtered, key_entries
+
     def _add_braille_labels(self, canvas_obj: canvas.Canvas, labels: list,
-                          scale_factor: float, x_offset: float, y_offset: float):
+                          scale_factor: float, x_offset: float, y_offset: float,
+                          page_width_pts: float = 0, page_height_pts: float = 0):
         """
         Render Braille labels on PDF.
 
@@ -370,6 +455,8 @@ class PIAFPDFGenerator:
             scale_factor: Scale factor for coordinates (image pixels to PDF inches)
             x_offset: X offset for centering image on page (in points)
             y_offset: Y offset for centering image on page (in points)
+            page_width_pts: Page width in points for edge clamping
+            page_height_pts: Page height in points for edge clamping
         """
         if not labels:
             return
@@ -388,7 +475,7 @@ class PIAFPDFGenerator:
         # Get Braille font settings from config
         braille_config = self.config.get('braille', {})
         font_name = braille_config.get('font_name', 'DejaVu Sans')
-        font_size = braille_config.get('font_size', 10)
+        font_size = braille_config.get('font_size', BRAILLE_FONT_SIZE_POINTS)
 
         # Set font for Braille text - must use Braille-compatible font
         try:
@@ -401,10 +488,7 @@ class PIAFPDFGenerator:
             return
 
         # Convert font size from points to pixels for baseline calculation
-        # 1 point = 1/72 inch, at 300 DPI: 1 point = 300/72 ≈ 4.17 pixels
-        DPI = 300
-        POINTS_PER_INCH = 72
-        font_size_px = font_size * (DPI / POINTS_PER_INCH)
+        font_size_px = font_size * (BRAILLE_DPI / 72)
 
         # Set fill color to black for Braille text
         # This is critical - without explicit color, text may not render visibly
@@ -436,6 +520,17 @@ class PIAFPDFGenerator:
 
             # Calculate label width in points for background rectangle
             label_width_pts = canvas_obj.stringWidth(label.braille_text, font_name, font_size)
+
+            # Clamp to page boundaries so labels never bleed off the edge
+            if page_width_pts > 0:
+                right_edge = x + label_width_pts
+                if right_edge > page_width_pts:
+                    x = max(0, page_width_pts - label_width_pts)
+            if page_height_pts > 0:
+                if y + font_size > page_height_pts:
+                    y = page_height_pts - font_size
+                if y < 0:
+                    y = 0
 
             # Draw white background (counter-highlighting) behind label
             # This ensures Braille is readable against any underlying image content
@@ -485,7 +580,8 @@ class PIAFPDFGenerator:
         braille_font = braille_config.get('font_name', 'DejaVu Sans')
         margin = 0.5 * inch
         y_position = page_height - margin
-        line_height = 28  # Space for Braille + print lines
+        braille_to_print_gap = BRAILLE_FONT_SIZE_POINTS + 6  # Braille baseline to print baseline
+        print_to_next_gap = 20  # Print baseline to next entry
 
         for line in text.split('\n'):
             if y_position < margin:
@@ -497,16 +593,16 @@ class PIAFPDFGenerator:
             if line.strip() and self._internal_braille_converter and self._braille_font_available:
                 try:
                     braille_line = self._internal_braille_converter.convert_text(line)
-                    canvas_obj.setFont(braille_font, 10)
+                    canvas_obj.setFont(braille_font, BRAILLE_FONT_SIZE_POINTS)
                     canvas_obj.drawString(margin, y_position, braille_line)
-                    y_position -= 14  # Move down for print line
+                    y_position -= braille_to_print_gap  # Move down for print line
                 except Exception:
                     pass  # If Braille fails, just show print
 
             # Draw print version
-            canvas_obj.setFont("Courier", 10)
+            canvas_obj.setFont("Courier", 12)
             canvas_obj.drawString(margin, y_position, line)
-            y_position -= line_height
+            y_position -= print_to_next_gap
 
     def add_tile_label(self, canvas_obj: canvas.Canvas, label: str,
                       page_width: float, page_height: float):
@@ -523,14 +619,14 @@ class PIAFPDFGenerator:
         braille_font = braille_config.get('font_name', 'DejaVu Sans')
         y_base = 0.25 * inch
 
-        # Draw Braille version first (above print) - use standard 10pt braille
+        # Draw Braille version first (above print)
         if self._internal_braille_converter and self._braille_font_available:
             try:
                 braille_label = self._internal_braille_converter.convert_text(label)
                 canvas_obj.setFont(braille_font, BRAILLE_FONT_SIZE_POINTS)
                 braille_width = canvas_obj.stringWidth(braille_label, braille_font, BRAILLE_FONT_SIZE_POINTS)
                 x_braille = (page_width - braille_width) / 2
-                canvas_obj.drawString(x_braille, y_base + 14, braille_label)
+                canvas_obj.drawString(x_braille, y_base + 16, braille_label)
             except Exception:
                 pass  # If Braille fails, just show print
 
@@ -612,11 +708,11 @@ class PIAFPDFGenerator:
         if not key_entries:
             return
 
-        # Layout constants
+        # Layout constants — sized for BANA-standard 24pt Braille
         margin = 0.75 * inch
-        braille_line_height = 14  # Points for 10pt Braille line
-        print_line_height = 14   # Points for print line
-        entry_spacing = 8        # Spacing between entries
+        braille_line_height = BRAILLE_FONT_SIZE_POINTS + 6  # Braille line + clearance
+        print_line_height = 16   # Points for print line
+        entry_spacing = 12       # Breathing room between entries
         total_entry_height = braille_line_height + print_line_height + entry_spacing
 
         # Two-column layout constants
@@ -628,9 +724,9 @@ class PIAFPDFGenerator:
         # Get font settings
         braille_config = self.config.get('braille', {})
         braille_font = braille_config.get('font_name', 'DejaVu Sans')
-        braille_font_size = BRAILLE_FONT_SIZE_POINTS  # Standard 10pt for all braille
-        print_font_size = 10  # Slightly smaller print for two-column layout
-        title_print_font_size = 14  # Larger print title for visual hierarchy
+        braille_font_size = BRAILLE_FONT_SIZE_POINTS  # BANA standard Braille size
+        print_font_size = 12  # Readable alongside 24pt Braille
+        title_print_font_size = 16  # Title for visual hierarchy
 
         # Start position
         y_position = page_height - margin
@@ -639,14 +735,23 @@ class PIAFPDFGenerator:
         # Add title in dual format: Braille and print (spans both columns)
         title_text = "ABBREVIATION KEY"
 
-        # Title in Braille (standard 10pt size)
+        # Title in Braille
         if self._internal_braille_converter and self._braille_font_available:
             try:
                 braille_title = self._internal_braille_converter.convert_text(title_text)
                 canvas_obj.setFont(braille_font, braille_font_size)
                 canvas_obj.setFillColorRGB(0, 0, 0)
+                # Truncate if wider than available space
+                title_max_width = page_width - 2 * margin
+                title_width = canvas_obj.stringWidth(braille_title, braille_font, braille_font_size)
+                if title_width > title_max_width:
+                    ellipsis = "\u2804\u2804\u2804"
+                    while len(braille_title) > 3 and canvas_obj.stringWidth(braille_title + ellipsis, braille_font, braille_font_size) > title_max_width:
+                        braille_title = braille_title[:-1]
+                    braille_title = braille_title.rstrip() + ellipsis
+
                 canvas_obj.drawString(margin, y_position, braille_title)
-                y_position -= braille_font_size + 4
+                y_position -= braille_line_height
             except Exception as e:
                 self.logger.debug(f"Failed to render Braille title: {e}")
 
@@ -660,7 +765,7 @@ class PIAFPDFGenerator:
         canvas_obj.setStrokeColorRGB(0, 0, 0)
         canvas_obj.setLineWidth(1)
         canvas_obj.line(margin, y_position, page_width - margin, y_position)
-        y_position -= 16
+        y_position -= braille_line_height
 
         # Store the content start position for column resets
         content_start_y = y_position
@@ -691,7 +796,7 @@ class PIAFPDFGenerator:
             y_pos = get_current_y()
 
             # Check if current column has room
-            if y_pos < margin + total_entry_height:
+            if y_pos < margin + total_entry_height + braille_line_height:
                 if current_column == 0:
                     # Switch to right column
                     current_column = 1
@@ -710,7 +815,7 @@ class PIAFPDFGenerator:
                             canvas_obj.setFont(braille_font, braille_font_size)
                             canvas_obj.setFillColorRGB(0, 0, 0)
                             canvas_obj.drawString(margin, left_y, cont_braille)
-                            left_y -= braille_font_size + 4
+                            left_y -= braille_line_height
                         except Exception:
                             pass
 
@@ -723,7 +828,7 @@ class PIAFPDFGenerator:
                     canvas_obj.setStrokeColorRGB(0, 0, 0)
                     canvas_obj.setLineWidth(1)
                     canvas_obj.line(margin, left_y, page_width - margin, left_y)
-                    left_y -= 16
+                    left_y -= braille_line_height
 
                     # Sync both column starting positions
                     right_y = left_y
@@ -741,6 +846,14 @@ class PIAFPDFGenerator:
 
                     # Construct Braille line: letter_braille = braille_full
                     braille_line = f"{letter_braille} {equals_braille} {entry.braille_full}"
+
+                    # Truncate Braille line if it exceeds column width
+                    braille_width = canvas_obj.stringWidth(braille_line, braille_font, braille_font_size)
+                    if braille_width > column_width:
+                        ellipsis = "\u2804\u2804\u2804"
+                        while len(braille_line) > 5 and canvas_obj.stringWidth(braille_line + ellipsis, braille_font, braille_font_size) > column_width:
+                            braille_line = braille_line[:-1]
+                        braille_line = braille_line.rstrip() + ellipsis
 
                     canvas_obj.setFont(braille_font, braille_font_size)
                     canvas_obj.setFillColorRGB(0, 0, 0)
@@ -801,8 +914,8 @@ class PIAFPDFGenerator:
         swatch_px_w = int(swatch_width_in * 300)  # 300 DPI
         swatch_px_h = int(swatch_height_in * 300)
 
-        braille_line_height = 14
-        print_line_height = 14
+        braille_line_height = BRAILLE_FONT_SIZE_POINTS + 6
+        print_line_height = 16
         entry_spacing = 12
         entry_height = swatch_height_pts + braille_line_height + print_line_height + entry_spacing
 
@@ -990,7 +1103,7 @@ class PIAFPDFGenerator:
             return
 
         margin = 0.5 * inch
-        line_height = 14  # Points between lines (optimized for 10pt Braille)
+        line_height = BRAILLE_FONT_SIZE_POINTS + 4  # Points between lines
         max_text_width = page_width - (2 * margin) - 100  # Leave room for symbol
 
         # Title
@@ -1011,7 +1124,7 @@ class PIAFPDFGenerator:
                     canvas_obj.setFont(font_name, BRAILLE_FONT_SIZE_POINTS)
                 except:
                     canvas_obj.setFont('Helvetica', BRAILLE_FONT_SIZE_POINTS)
-                canvas_obj.drawString(margin + 60, y_position, braille_title)
+                canvas_obj.drawString(margin + 80, y_position, braille_title)
             except:
                 pass  # Skip Braille title if conversion fails
 
@@ -1023,7 +1136,7 @@ class PIAFPDFGenerator:
 
         y_position -= line_height
 
-        # Get fonts ready - use standard 10pt for all Braille
+        # Get fonts ready
         braille_config = self.config.get('braille', {})
         braille_font = braille_config.get('font_name', 'DejaVu Sans')
         braille_font_size = BRAILLE_FONT_SIZE_POINTS
@@ -1075,7 +1188,7 @@ class PIAFPDFGenerator:
             if len(text) > max_chars:
                 text = text[:max_chars-3] + "..."
 
-            canvas_obj.setFont("Helvetica", 11)
+            canvas_obj.setFont("Helvetica", 12)
             canvas_obj.drawString(margin, y_position, f"{entry.symbol} = {text}")
 
             y_position -= line_height * 1.5  # Extra space between entries
@@ -1356,7 +1469,16 @@ class PIAFPDFGenerator:
                 # Add Braille labels if provided
                 if braille_labels:
                     scale_factor = img_width / processed_image.size[0]
-                    self._add_braille_labels(c, braille_labels, scale_factor, x_offset, y_offset)
+
+                    # Filter labels that would bleed off page edge → abbreviate to key
+                    if key_entries is not None and braille_converter:
+                        braille_labels, key_entries = self._filter_overflow_labels(
+                            braille_labels, key_entries, braille_converter,
+                            scale_factor, x_offset, page_width_pts
+                        )
+
+                    self._add_braille_labels(c, braille_labels, scale_factor, x_offset, y_offset,
+                                            page_width_pts, page_height_pts)
 
                 # Add page number label at bottom
                 page_label = f"Page {page_idx} of {len(pages_data)}"

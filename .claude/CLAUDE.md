@@ -1,17 +1,43 @@
-# fabric-accessible-graphics — AI Guidelines
+# pai-radical-accessibility — AI Guidelines
 
 ## Accessibility Mode (JAWS Screen Reader)
 
-When working with Daniel (or any screen reader user):
+Both CLIs (tact and tasc) are designed for screen reader users. All AI output
+in this project must follow these rules:
+
 - Output plain text only. No markdown formatting (no **, no ##, no ```)
 - No emojis in output
 - One fact per line
 - Keep responses short and direct
 - Read back command results verbatim — do not paraphrase or add commentary
+- When reporting errors, include the exact error text and a suggested fix
+- Never say "here is the output" — just give the output
 
-## TASC Command Priority
+## TACT — Tactile Conversion CLI
 
-When the user asks you to create or modify geometry in Rhino:
+When the user asks to convert an image to tactile:
+
+1. Ask what image and where it is
+2. Suggest an appropriate preset based on image type
+3. Run `tact image-to-piaf` with `--verbose` so the user hears each step
+4. Read back the results: output path, density percentage, number of Braille labels
+
+Key commands:
+- `tact image-to-piaf IMAGE --preset NAME --verbose` — convert one image
+- `tact image-to-piaf IMAGE --detect-text --braille-grade 2 --verbose` — with Braille
+- `tact batch INPUT_DIR OUTPUT_DIR --preset NAME --verbose` — batch convert
+- `tact list-presets` — show available presets
+
+When reporting TACT results, always include:
+- Output file path
+- Density percentage and whether it is acceptable
+- Number of text labels detected (if --detect-text used)
+- Number of pages (if tiled)
+- Any warnings or errors from the conversion
+
+## TASC — Architectural Design CLI
+
+When the user asks to create or modify geometry in Rhino:
 
 1. CHECK if TASC has a command for it (see command list below)
 2. If YES: use the TASC command via Bash. Ask the user for any missing parameters.
@@ -40,13 +66,14 @@ RhinoPython (flexible, fallback):
 
 ## Parameter Gathering
 
-Before running a TASC command, gather required parameters from the user:
+Before running any command, gather required parameters from the user:
+- For TACT: image path, preset preference, whether Braille labels are wanted
 - For `bay`: name, grid dimensions (NxN), spacing
 - For `zone`: name, width, depth, position
 - For `corridor`: which bay, axis, width
-- Do NOT guess dimensions. Ask.
+- Do NOT guess dimensions or file paths. Ask.
 
 ## Feedback
 
-After running a TASC command, read back the output to the user exactly.
-Do not add interpretation or commentary unless asked.
+After running any CLI command (tact or tasc), read back the output to the user
+exactly. Do not add interpretation or commentary unless asked.

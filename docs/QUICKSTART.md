@@ -12,19 +12,18 @@ Get running in 5 minutes. Convert your first image to a tactile-ready PDF.
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/YOUR-ORG/fabric-accessible-graphics.git
-cd fabric-accessible-graphics
+git clone https://github.com/ethanshig/pai-radical-accessibility.git
+cd pai-radical-accessibility
 
 # 2. Create and activate virtual environment
 python3 -m venv venv
 source venv/bin/activate  # Windows WSL: same command
 
 # 3. Install dependencies
-pip install -r requirements.txt
-pip install -e .
+pip install -e ./lib/tactile-core
 
 # 4. Verify it works
-tactile info
+tact info
 ```
 
 You should see toolkit information and "Ready to convert images!"
@@ -32,7 +31,7 @@ You should see toolkit information and "Ready to convert images!"
 ## Your First Conversion
 
 ```bash
-tactile image-to-piaf samples/plan_test.jpg --preset floor_plan --verbose
+tact image-to-piaf samples/plan_test.jpg --preset floor_plan --verbose
 ```
 
 This converts a sample floor plan to a PIAF-ready PDF. You'll see:
@@ -55,35 +54,35 @@ The toolkit:
 ### Add Braille Labels
 Detect text in the image and convert to Braille:
 ```bash
-tactile image-to-piaf samples/plan_test.jpg --detect-text --verbose
+tact image-to-piaf samples/plan_test.jpg --detect-text --verbose
 ```
 
 ### Use Different Presets
 Each preset is optimized for different image types:
 ```bash
 # For hand-drawn sketches
-tactile image-to-piaf your-sketch.jpg --preset sketch
+tact image-to-piaf your-sketch.jpg --preset sketch
 
 # For photographs
-tactile image-to-piaf photo.jpg --preset photograph
+tact image-to-piaf photo.jpg --preset photograph
 
 # See all presets
-tactile list-presets
+tact list-presets
 ```
 
 ### Enhance Low-Contrast Images
 ```bash
-tactile image-to-piaf faint-drawing.jpg --enhance s_curve --verbose
+tact image-to-piaf faint-drawing.jpg --enhance s_curve --verbose
 ```
 
 ### Process Multiple Files
 ```bash
-tactile batch ./input-folder ./output-folder --preset floor_plan
+tact batch ./input-folder ./output-folder --preset floor_plan
 ```
 
 ## Common Issues
 
-**"Command not found: tactile"**
+**"Command not found: tact"**
 - Make sure you activated the virtual environment: `source venv/bin/activate`
 
 **Output is too dark/light**
@@ -95,6 +94,6 @@ tactile batch ./input-folder ./output-folder --preset floor_plan
 
 ## Next Steps
 
-- See all options: `tactile image-to-piaf --help`
+- See all options: `tact image-to-piaf --help`
 - Full documentation: [README.md](../README.md)
 - Text detection guide: [TEXT_DETECTION_QUICKSTART.md](guides/TEXT_DETECTION_QUICKSTART.md)

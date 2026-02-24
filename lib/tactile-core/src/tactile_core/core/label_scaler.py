@@ -9,19 +9,22 @@ scaling recommendations when they don't fit.
 import logging
 from typing import Dict, List, Optional, Tuple
 
-from tactile_core.core.braille_converter import BrailleConverter, BrailleConfig
+from tactile_core.core.braille_converter import (
+    BrailleConverter, BrailleConfig,
+    BRAILLE_DPI, BRAILLE_FONT_SIZE_POINTS, BRAILLE_FONT_SIZE_PX, BRAILLE_CHAR_WIDTH_PX,
+)
 from tactile_core.core.text_detector import DetectedText
 
 
 __all__ = ["analyze_label_fit"]
 
 
-# Constants matching braille_converter.py rendering parameters
-DPI = 300
-FONT_SIZE_POINTS = 10
-FONT_SIZE_PX = FONT_SIZE_POINTS * (DPI / 72)  # ~41.67 pixels
-CHAR_WIDTH_PX = FONT_SIZE_PX * 0.6  # ~25 pixels per character
-BRAILLE_HEIGHT_PX = FONT_SIZE_PX  # Height of a Braille line (~41.67 pixels)
+# Re-export under local names used throughout this file
+DPI = BRAILLE_DPI
+FONT_SIZE_POINTS = BRAILLE_FONT_SIZE_POINTS
+FONT_SIZE_PX = BRAILLE_FONT_SIZE_PX
+CHAR_WIDTH_PX = BRAILLE_CHAR_WIDTH_PX
+BRAILLE_HEIGHT_PX = BRAILLE_FONT_SIZE_PX
 
 # Scaling constraints
 MIN_TEXT_HEIGHT_THRESHOLD = 4  # Don't trust bounding boxes smaller than 4px
@@ -48,7 +51,7 @@ def _create_braille_converter(grade: int = 2) -> BrailleConverter:
         font_name="DejaVu Sans",
         font_size=FONT_SIZE_POINTS,
         offset_x=5,
-        offset_y=-10,
+        offset_y=-24,
         max_label_length=30,
         truncate_suffix="...",
         font_color="black",

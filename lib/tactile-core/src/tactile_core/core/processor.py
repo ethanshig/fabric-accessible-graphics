@@ -14,6 +14,7 @@ from tactile_core.utils.logger import AccessibleLogger
 from tactile_core.utils.validators import validate_image_file
 from tactile_core.core.contrast import ContrastEnhancer
 from tactile_core.core.text_detector import TextDetector, TextDetectionConfig, DetectedText
+from tactile_core.core.braille_converter import BRAILLE_DPI, BRAILLE_FONT_SIZE_POINTS
 from tactile_core.core.rainbowtact import RainbowTactConverter, RainbowTactConfig, ColorRegion, TactilePattern
 
 
@@ -139,7 +140,7 @@ class ImageProcessor:
         return bw_image
 
     def whiteout_braille_regions(self, image: Image.Image, braille_labels: list,
-                                 font_size: int = 10, padding: int = 2) -> Image.Image:
+                                 font_size: int = BRAILLE_FONT_SIZE_POINTS, padding: int = 2) -> Image.Image:
         """
         White out regions where Braille labels will be placed.
 
@@ -150,7 +151,7 @@ class ImageProcessor:
         Args:
             image: B&W PIL Image (mode '1' or 'L')
             braille_labels: List of BrailleLabel objects with positions and text
-            font_size: Font size in points for Braille text (default: 10)
+            font_size: Font size in points for Braille text
             padding: Pixels of padding around each label region (default: 2)
 
         Returns:
@@ -173,10 +174,7 @@ class ImageProcessor:
         height, width = img_array.shape
 
         # Convert font size from points to pixels at 300 DPI
-        # 1 point = 1/72 inch, at 300 DPI: 1 point = 300/72 ≈ 4.17 pixels
-        DPI = 300
-        POINTS_PER_INCH = 72
-        pixels_per_point = DPI / POINTS_PER_INCH
+        pixels_per_point = BRAILLE_DPI / 72
         font_size_px = int(font_size * pixels_per_point)
 
         # White out each Braille label region

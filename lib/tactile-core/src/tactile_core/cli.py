@@ -460,6 +460,21 @@ def convert(input_path, output, threshold, paper_size, verbose, interactive, con
                 logger.solution("Use format: x%,y%,width%,height% (e.g., 25,30,50,40)")
                 sys.exit(1)
 
+        # Detect text with EasyOCR on original image (before thresholding)
+        easyocr_texts = []
+        if detect_text:
+            try:
+                from PIL import Image as PILImage
+                from tactile_core.core.easyocr_detector import EasyOCRDetector
+                detector = EasyOCRDetector()
+                with PILImage.open(zoomed_input_path) as orig_img:
+                    easyocr_texts = detector.detect_text(orig_img)
+                if verbose:
+                    logger.info(f"EasyOCR detected {len(easyocr_texts)} text regions")
+            except Exception as e:
+                logger.warning(f"EasyOCR text detection failed: {e}")
+                logger.info("Continuing without text detection")
+
         try:
             processed_image, metadata = processor.process(
                 input_path=zoomed_input_path,
@@ -471,13 +486,17 @@ def convert(input_path, output, threshold, paper_size, verbose, interactive, con
                 auto_reduce_density=auto_reduce_density,
                 target_density=target_density,
                 max_reduction_iterations=max_reduction_iterations,
-                detect_text=detect_text,
+                detect_text=False,
                 save_intermediate_path=save_intermediate
             )
         except ImageProcessorError as e:
             logger.error("Image processing failed", e)
             logger.solution("Check that the input file is a valid image")
             sys.exit(1)
+
+        # Inject EasyOCR results into metadata
+        if detect_text and easyocr_texts:
+            metadata['detected_texts'] = easyocr_texts
 
         logger.blank_line()
 
@@ -506,6 +525,17 @@ def convert(input_path, output, threshold, paper_size, verbose, interactive, con
                 effective_scale_percent = scale_percent
                 logger.info(f"Manual scaling applied: {scale_percent:.0f}%")
 
+                # Detect text on scaled image with EasyOCR
+                if detect_text:
+                    try:
+                        from tactile_core.core.easyocr_detector import EasyOCRDetector
+                        detector = EasyOCRDetector()
+                        with PILImage.open(scaled_path) as scaled_img:
+                            easyocr_texts = detector.detect_text(scaled_img)
+                    except Exception as e:
+                        if verbose:
+                            logger.warning(f"EasyOCR on scaled image failed: {e}")
+
                 # Re-process the scaled image
                 processed_image, metadata = processor.process(
                     input_path=scaled_path,
@@ -517,8 +547,12 @@ def convert(input_path, output, threshold, paper_size, verbose, interactive, con
                     auto_reduce_density=auto_reduce_density,
                     target_density=target_density,
                     max_reduction_iterations=max_reduction_iterations,
-                    detect_text=detect_text
+                    detect_text=False
                 )
+
+                # Inject EasyOCR results
+                if detect_text and easyocr_texts:
+                    metadata['detected_texts'] = easyocr_texts
 
                 # Update detected texts with new detection
                 detected_texts = metadata.get('detected_texts', [])
@@ -572,6 +606,17 @@ def convert(input_path, output, threshold, paper_size, verbose, interactive, con
                         scaled_image.save(scaled_temp.name, format='PNG')
                         scaled_path = scaled_temp.name
 
+                    # Detect text on scaled image with EasyOCR
+                    if detect_text:
+                        try:
+                            from tactile_core.core.easyocr_detector import EasyOCRDetector
+                            detector = EasyOCRDetector()
+                            with PILImage.open(scaled_path) as scaled_img:
+                                easyocr_texts = detector.detect_text(scaled_img)
+                        except Exception as e:
+                            if verbose:
+                                logger.warning(f"EasyOCR on scaled image failed: {e}")
+
                     # Re-process the scaled image
                     processed_image, metadata = processor.process(
                         input_path=scaled_path,
@@ -583,8 +628,12 @@ def convert(input_path, output, threshold, paper_size, verbose, interactive, con
                         auto_reduce_density=auto_reduce_density,
                         target_density=target_density,
                         max_reduction_iterations=max_reduction_iterations,
-                        detect_text=detect_text
+                        detect_text=False
                     )
+
+                    # Inject EasyOCR results
+                    if detect_text and easyocr_texts:
+                        metadata['detected_texts'] = easyocr_texts
 
                     # Update detected texts with new detection
                     detected_texts = metadata.get('detected_texts', [])
@@ -613,9 +662,9 @@ def convert(input_path, output, threshold, paper_size, verbose, interactive, con
                     grade=int(braille_grade),
                     placement=braille_placement,
                     font_name=braille_config_dict.get('font_name', 'DejaVu Sans'),
-                    font_size=braille_config_dict.get('font_size', 10),
+                    font_size=braille_config_dict.get('font_size', 24),
                     offset_x=braille_config_dict.get('offset_x', 5),
-                    offset_y=braille_config_dict.get('offset_y', -10),
+                    offset_y=braille_config_dict.get('offset_y', -24),
                     max_label_length=braille_config_dict.get('max_label_length', 30),
                     truncate_suffix=braille_config_dict.get('truncate_suffix', '...'),
                     font_color=braille_config_dict.get('font_color', 'black'),
@@ -1115,6 +1164,18 @@ def batch(input_dir, output_dir, pattern, preset, threshold, enhance, paper_size
                     logger=AccessibleLogger(verbose=verbose)
                 )
 
+                # Detect text with EasyOCR on original image
+                easyocr_texts = []
+                if detect_text:
+                    try:
+                        from PIL import Image as PILImage
+                        from tactile_core.core.easyocr_detector import EasyOCRDetector
+                        detector = EasyOCRDetector()
+                        with PILImage.open(str(input_file)) as orig_img:
+                            easyocr_texts = detector.detect_text(orig_img)
+                    except Exception:
+                        pass  # Silently skip EasyOCR errors in batch mode
+
                 processed_image, metadata = processor.process(
                     input_path=str(input_file),
                     threshold=file_threshold,
@@ -1125,8 +1186,12 @@ def batch(input_dir, output_dir, pattern, preset, threshold, enhance, paper_size
                     auto_reduce_density=auto_reduce_density,
                     target_density=target_density,
                     max_reduction_iterations=max_reduction_iterations,
-                    detect_text=detect_text
+                    detect_text=False
                 )
+
+                # Inject EasyOCR results
+                if detect_text and easyocr_texts:
+                    metadata['detected_texts'] = easyocr_texts
 
                 # Get detected texts and apply scaling if needed
                 detected_texts = metadata.get('detected_texts', [])
@@ -1163,6 +1228,16 @@ def batch(input_dir, output_dir, pattern, preset, threshold, enhance, paper_size
                                 scaled_temp = tempfile.NamedTemporaryFile(suffix='.png', delete=False, prefix='scaled_')
                                 scaled_image.save(scaled_temp.name, format='PNG')
 
+                            # Detect text on scaled image with EasyOCR
+                            if detect_text:
+                                try:
+                                    from tactile_core.core.easyocr_detector import EasyOCRDetector
+                                    detector = EasyOCRDetector()
+                                    with PILImage.open(scaled_temp.name) as scaled_img:
+                                        easyocr_texts = detector.detect_text(scaled_img)
+                                except Exception:
+                                    pass  # Silently skip in batch mode
+
                             # Re-process the scaled image
                             processed_image, metadata = processor.process(
                                 input_path=scaled_temp.name,
@@ -1174,8 +1249,13 @@ def batch(input_dir, output_dir, pattern, preset, threshold, enhance, paper_size
                                 auto_reduce_density=auto_reduce_density,
                                 target_density=target_density,
                                 max_reduction_iterations=max_reduction_iterations,
-                                detect_text=detect_text
+                                detect_text=False
                             )
+
+                            # Inject EasyOCR results
+                            if detect_text and easyocr_texts:
+                                metadata['detected_texts'] = easyocr_texts
+
                             detected_texts = metadata.get('detected_texts', [])
                     except Exception:
                         pass  # Silently skip scaling errors in batch mode
@@ -1195,9 +1275,9 @@ def batch(input_dir, output_dir, pattern, preset, threshold, enhance, paper_size
                             grade=int(braille_grade),
                             placement=braille_placement,
                             font_name=braille_config_dict.get('font_name', 'DejaVu Sans'),
-                            font_size=braille_config_dict.get('font_size', 10),
+                            font_size=braille_config_dict.get('font_size', 24),
                             offset_x=braille_config_dict.get('offset_x', 5),
-                            offset_y=braille_config_dict.get('offset_y', -10),
+                            offset_y=braille_config_dict.get('offset_y', -24),
                             max_label_length=braille_config_dict.get('max_label_length', 30),
                             truncate_suffix=braille_config_dict.get('truncate_suffix', '...'),
                             font_color=braille_config_dict.get('font_color', 'black'),

@@ -21,8 +21,8 @@ Use this checklist to verify your installation is complete and working.
 
 - [ ] CLI available
   ```bash
-  tactile --version
-  # Expected: tactile, version 1.0.0
+  tact --version
+  # Expected: tact, version 1.0.0
   ```
 
 ## System Dependencies
@@ -48,13 +48,13 @@ Use this checklist to verify your installation is complete and working.
 
 - [ ] Can list presets
   ```bash
-  tactile list-presets
+  tact list-presets
   # Should show 10 presets
   ```
 
 - [ ] Can convert an image
   ```bash
-  tactile image-to-piaf samples/Sketch_Test.jpg --verbose
+  tact image-to-piaf samples/Sketch_Test.jpg --verbose
   # Should create samples/Sketch_Test_piaf.pdf
   ```
 
@@ -68,14 +68,14 @@ Use this checklist to verify your installation is complete and working.
 
 - [ ] Can detect text and add Braille
   ```bash
-  tactile image-to-piaf samples/ANNEX-PLANS-OFFICIAL_Page_1.jpg --detect-text --verbose
+  tact image-to-piaf samples/ANNEX-PLANS-OFFICIAL_Page_1.jpg --detect-text --verbose
   ```
 
 ### Presets
 
 - [ ] Can use presets
   ```bash
-  tactile image-to-piaf samples/Sketch_Test.jpg --preset sketch --verbose
+  tact image-to-piaf samples/Sketch_Test.jpg --preset sketch --verbose
   ```
 
 ## MCP Server (Optional)
@@ -116,8 +116,8 @@ echo "=== Radical Accessibility Verification ==="
 echo -n "Python version: "
 python3 --version
 
-echo -n "tactile version: "
-tactile --version 2>/dev/null || echo "NOT INSTALLED"
+echo -n "tact version: "
+tact --version 2>/dev/null || echo "NOT INSTALLED"
 
 echo -n "Tesseract: "
 tesseract --version 2>/dev/null | head -1 || echo "NOT INSTALLED"
@@ -130,7 +130,7 @@ python3 -c "import louis; print(louis.version())" 2>/dev/null || echo "NOT INSTA
 
 echo ""
 echo "Testing conversion..."
-tactile image-to-piaf samples/Sketch_Test.jpg -o /tmp/test_verify.pdf --verbose 2>&1 | tail -5
+tact image-to-piaf samples/Sketch_Test.jpg -o /tmp/test_verify.pdf --verbose 2>&1 | tail -5
 
 if [ -f /tmp/test_verify.pdf ]; then
     echo "SUCCESS: Test PDF created"
@@ -148,7 +148,7 @@ echo "=== Verification Complete ==="
 | Check | If Failed |
 |-------|-----------|
 | Python version | Install Python 3.10+ |
-| tactile version | Run `pip install -e ./lib/tactile-core` |
+| tact version | Run `pip install -e ./lib/tactile-core` |
 | Tesseract | See INSTALL.md Step 3 |
 | Poppler | See INSTALL.md Step 3 |
 | Liblouis | Optional - see INSTALL.md Step 3 |
@@ -258,7 +258,7 @@ If using PAI, add hooks to `~/.claude/settings.json`:
 
 If all checks pass, your installation is complete. You can now:
 
-1. Convert images: `tactile image-to-piaf your-image.jpg`
+1. Convert images: `tact image-to-piaf your-image.jpg`
 2. Use with PAI: Just say "convert to tactile" or "describe this image"
 3. Use with MCP: Configure in Claude Code settings
 

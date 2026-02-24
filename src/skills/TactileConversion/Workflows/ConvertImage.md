@@ -5,7 +5,7 @@ Step-by-step process for converting an image to tactile-ready PDF.
 ## Prerequisites
 
 - Image file path provided by user
-- `tactile` CLI available (from tactile-core)
+- `tact` CLI available (from tactile-core)
 - Tesseract installed (if text detection needed)
 
 ## Workflow Steps
@@ -29,7 +29,7 @@ Before conversion, understand the source:
 
 **Tool call** (optional):
 ```bash
-tactile analyze IMAGE_PATH
+tact analyze IMAGE_PATH
 ```
 
 ### Step 2: Select Preset
@@ -75,7 +75,7 @@ Based on user needs:
 Build and run the command:
 
 ```bash
-tactile image-to-piaf IMAGE_PATH \
+tact image-to-piaf IMAGE_PATH \
   --preset PRESET_NAME \
   --detect-text \
   --braille-grade 2 \
@@ -99,7 +99,7 @@ Check the results:
 
 If density too high:
 ```bash
-tactile image-to-piaf IMAGE_PATH --auto-reduce-density --verbose
+tact image-to-piaf IMAGE_PATH --auto-reduce-density --verbose
 ```
 
 ### Step 6: Present Results
@@ -125,7 +125,7 @@ Report to user:
 ```
 I'll convert the floor plan using the floor_plan preset with Braille labels.
 
-Running: tactile image-to-piaf floor-plan.jpg --preset floor_plan --detect-text --braille-grade 2 --verbose
+Running: tact image-to-piaf floor-plan.jpg --preset floor_plan --detect-text --braille-grade 2 --verbose
 
 Results:
 - Output: floor-plan_piaf.pdf
@@ -155,11 +155,11 @@ The PDF is ready for PIAF printing. Would you like me to:
 For multiple images:
 
 ```bash
-tactile batch INPUT_DIR OUTPUT_DIR --preset floor_plan --detect-text --verbose
+tact batch INPUT_DIR OUTPUT_DIR --preset floor_plan --detect-text --verbose
 ```
 
 Or with recursive subdirectories:
 
 ```bash
-tactile batch INPUT_DIR OUTPUT_DIR --preset floor_plan --recursive --verbose
+tact batch INPUT_DIR OUTPUT_DIR --preset floor_plan --recursive --verbose
 ```

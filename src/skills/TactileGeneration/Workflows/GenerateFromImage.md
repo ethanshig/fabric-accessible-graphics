@@ -128,7 +128,7 @@ Check generated image against requirements:
 If Braille labels needed:
 
 ```bash
-tactile image-to-piaf ~/Downloads/tactile-output.png \
+tact image-to-piaf ~/Downloads/tactile-output.png \
   --detect-text \
   --braille-grade 2 \
   --verbose

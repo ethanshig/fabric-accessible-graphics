@@ -135,16 +135,15 @@ Uses: `tools/TactileGenerate.ts` which wraps PAI's Generate.ts with tactile-spec
 - PNG image ready for PIAF printing
 - Pure black and white (verified)
 - 300 DPI resolution
-- Optional: Run through `tactile` CLI to add Braille labels
+- Optional: Run through `tact` CLI to add Braille labels
 
-## Example Usage
+## Examples
 
-**User**: "Create a tactile floor plan of Mies van der Rohe's Barcelona Pavilion"
+**Example 1**: "Create a tactile floor plan of Mies van der Rohe's Barcelona Pavilion"
+- Research layout, construct prompt with tactile suffix, generate, verify specs, offer Braille labels
 
-**Response**:
-1. Research Barcelona Pavilion layout (cross-shaped plan, reflecting pool, glass/onyx walls)
-2. Construct prompt with architectural accuracy
-3. Add tactile suffix
-4. Generate via TactileGenerate.ts
-5. Verify output meets tactile specs
-6. Offer to add Braille labels via tactile-core
+**Example 2**: "Simplify this cluttered section drawing for tactile"
+- Analyze source, identify key structural elements, generate clean B&W version, post-process through `tact`
+
+**Example 3**: "Stratify this floor plan into structure, circulation, and program layers"
+- Generate three separate tactile images, each showing one system clearly

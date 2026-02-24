@@ -115,6 +115,21 @@ Before running TASC commands, gather required parameters from the user:
 - `lib/tasc-core/README.md` -- Full CLI and DSL reference
 - `.claude/CLAUDE.md` -- Screen-reader interaction rules (plain text only, no markdown)
 
+## Examples
+
+```bash
+# Create a simple site with zones
+tasc site 200 150
+tasc zone living 50 40 --at 10,10
+tasc zone kitchen 30 25 --at 70,10
+tasc describe
+
+# Create a structural bay with corridor
+tasc bay A 6x3 --spacing 24 24 --at 18,8
+tasc corridor A on --axis x --width 8
+tasc export piaf
+```
+
 ## Output
 
 All feedback is screen-reader-friendly plain text. After running any TASC command, read back the output to the user exactly without interpretation.

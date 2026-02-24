@@ -269,9 +269,9 @@ async def _process_multipage_pdf(
                     grade=int(braille_grade),
                     placement="overlay",
                     font_name=braille_config_dict.get('font_name', 'DejaVu Sans'),
-                    font_size=braille_config_dict.get('font_size', 10),
+                    font_size=braille_config_dict.get('font_size', 24),
                     offset_x=braille_config_dict.get('offset_x', 5),
-                    offset_y=braille_config_dict.get('offset_y', -10),
+                    offset_y=braille_config_dict.get('offset_y', -24),
                     max_label_length=braille_config_dict.get('max_label_length', 30),
                     truncate_suffix=braille_config_dict.get('truncate_suffix', '...'),
                     font_color=braille_config_dict.get('font_color', 'black'),
@@ -327,7 +327,7 @@ async def _process_multipage_pdf(
                     enabled=True,
                     grade=int(braille_grade),
                     font_name=braille_config_dict.get('font_name', 'DejaVu Sans'),
-                    font_size=braille_config_dict.get('font_size', 10)
+                    font_size=braille_config_dict.get('font_size', 24)
                 )
                 braille_converter_for_key = BrailleConverter(braille_config, silent_logger)
             except:
@@ -428,9 +428,9 @@ async def _process_rainbowtact(
                     grade=int(braille_grade),
                     placement="overlay",
                     font_name=braille_config_dict.get('font_name', 'DejaVu Sans'),
-                    font_size=braille_config_dict.get('font_size', 10),
+                    font_size=braille_config_dict.get('font_size', 24),
                     offset_x=braille_config_dict.get('offset_x', 5),
-                    offset_y=braille_config_dict.get('offset_y', -10),
+                    offset_y=braille_config_dict.get('offset_y', -24),
                     max_label_length=braille_config_dict.get('max_label_length', 30),
                     truncate_suffix=braille_config_dict.get('truncate_suffix', '...'),
                     font_color=braille_config_dict.get('font_color', 'black'),
@@ -1099,9 +1099,9 @@ async def image_to_piaf(
                     grade=int(braille_grade),
                     placement="overlay",
                     font_name=braille_config_dict.get('font_name', 'DejaVu Sans'),
-                    font_size=braille_config_dict.get('font_size', 10),
+                    font_size=braille_config_dict.get('font_size', 24),
                     offset_x=braille_config_dict.get('offset_x', 5),
-                    offset_y=braille_config_dict.get('offset_y', -10),
+                    offset_y=braille_config_dict.get('offset_y', -24),
                     max_label_length=braille_config_dict.get('max_label_length', 30),
                     truncate_suffix=braille_config_dict.get('truncate_suffix', '...'),
                     font_color=braille_config_dict.get('font_color', 'black'),

@@ -4,7 +4,7 @@
 
 ### 1. Install Python Dependencies
 ```bash
-pip install -r requirements.txt
+pip install -e ./lib/tactile-core
 ```
 
 ### 2. Install Tesseract OCR
@@ -142,14 +142,11 @@ For faster processing, consider downsampling large images.
 
 | File | Purpose |
 |------|---------|
-| `src/tactile_core/core/text_detector.py` | Main OCR module |
-| `test_text_detection.py` | Test suite |
-| `demo_text_detection.py` | Demo script |
-| `TEXT_DETECTION_README.md` | Full documentation |
-| `IMPLEMENTATION_SUMMARY.md` | Technical details |
+| `lib/tactile-core/src/tactile_core/core/text_detector.py` | Tesseract OCR module (fallback) |
+| `lib/tactile-core/src/tactile_core/core/easyocr_detector.py` | EasyOCR module (primary) |
 
 ---
 
 ## Need Help?
 
-See `TEXT_DETECTION_README.md` for complete documentation.
+See the [WALKTHROUGH](WALKTHROUGH.md) for complete usage documentation.

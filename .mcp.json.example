@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "tactile": {
+      "command": "./venv/bin/tact-mcp"
+    },
+    "rhinomcp": {
+      "command": "./venv/bin/rhinomcp",
+      "env": {
+        "RHINO_MCP_HOST": "127.0.0.1",
+        "RHINO_MCP_PORT": "1999"
+      }
+    }
+  }
+}
