@@ -44,7 +44,7 @@ This toolkit needs to run in **WSL (Windows Subsystem for Linux)**, not PowerShe
 
    Environment activated! You can now use:
      tact info
-     tact image-to-piaf [IMAGE]
+     tact convert [IMAGE]
 
    To deactivate when done, type: deactivate
    ```
@@ -56,7 +56,7 @@ This toolkit needs to run in **WSL (Windows Subsystem for Linux)**, not PowerShe
 tact info
 
 # Convert an image
-tact image-to-piaf my-image.jpg --verbose
+tact convert my-image.jpg --verbose
 
 # Get help
 tact --help

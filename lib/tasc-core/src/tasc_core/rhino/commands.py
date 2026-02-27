@@ -51,6 +51,10 @@ def _send_cmds(connector: "RhinoConnector", cmds: list[dict] | dict) -> None:
         connector.send(cmd["type"], cmd["params"])
 
 
+DEFAULT_DISPLAY_MODE = "LightPen"
+TACT_CAPTURE_MODE = "Pen"  # White background, black lines — required for TACT/PIAF
+
+
 class RhinoDrawer:
     """Draws TASC model elements in Rhino via the connector."""
 
@@ -58,7 +62,7 @@ class RhinoDrawer:
         self.connector = connector
 
     def setup_layers(self) -> None:
-        """Create TASC layers in Rhino."""
+        """Create TASC layers in Rhino and set display mode."""
         if not self.connector.is_live:
             return
         for name, color in [
@@ -72,6 +76,63 @@ class RhinoDrawer:
             (LAYER_VOIDS, COLOR_VOID),
         ]:
             _send_cmds(self.connector, create_layer_cmd(name, color))
+        self.set_display_mode(DEFAULT_DISPLAY_MODE)
+
+    def set_display_mode(self, mode: str) -> str | None:
+        """Set all viewports to a named display mode. Returns previous mode or None."""
+        if not self.connector.is_live:
+            return None
+        script = (
+            "import rhinoscriptsyntax as rs\n"
+            f"mode = '{mode}'\n"
+            "modes = rs.ViewDisplayModes(True)\n"
+            "if mode in modes:\n"
+            "    prev = None\n"
+            "    for v in rs.ViewNames():\n"
+            "        prev = rs.ViewDisplayMode(v, mode)\n"
+            "    print('Switched to ' + mode)\n"
+            "else:\n"
+            "    print('Mode not found: ' + mode)\n"
+            "    print('Available: ' + ', '.join(modes))\n"
+        )
+        try:
+            result = self.connector.send("execute_rhinoscript_python_code", {"code": script})
+            return result.get("output", "")
+        except Exception:
+            return None
+
+    def capture_for_tact(self, output_path: str, viewport: str = "Top",
+                         width: int = 2550, height: int = 3300) -> str | None:
+        """Capture viewport image suitable for TACT/PIAF conversion.
+
+        Temporarily switches to Pen mode (white bg, black lines), captures,
+        then restores the working display mode. Returns output path or None.
+        """
+        if not self.connector.is_live:
+            return None
+        script = (
+            "import rhinoscriptsyntax as rs\n"
+            "import System.Drawing as sd\n"
+            f"view = '{viewport}'\n"
+            f"out = r'{output_path}'\n"
+            f"w, h = {width}, {height}\n"
+            "# Switch to Pen mode for capture\n"
+            "prev = rs.ViewDisplayMode(view, 'Pen')\n"
+            "rs.Command('_-ViewCaptureToFile ' + out + ' _Width=' + str(w) + ' _Height=' + str(h) + ' _Enter', False)\n"
+            "# Restore previous mode\n"
+            "rs.ViewDisplayMode(view, prev)\n"
+            f"print('Captured to ' + out)\n"
+        )
+        try:
+            result = self.connector.send("execute_rhinoscript_python_code", {"code": script})
+            output = result.get("output", "")
+            if "Captured" in output:
+                return output_path
+            return None
+        except Exception:
+            # Try to restore display mode even on failure
+            self.set_display_mode(DEFAULT_DISPLAY_MODE)
+            return None
 
     def draw_site(self, site: "Site") -> None:
         """Draw site boundary as closed polyline."""

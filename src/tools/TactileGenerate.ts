@@ -234,7 +234,7 @@ async function generate(options: GenerateOptions): Promise<void> {
       console.log("\nNext steps:");
       console.log("1. Review the image for PIAF compatibility");
       console.log("2. If needed, run through tactile-core for Braille labels:");
-      console.log(`   tactile image-to-piaf ${options.output} --detect-text --braille-grade 2`);
+      console.log(`   tact convert ${options.output} --detect-text --braille-grade 2`);
     }
   } catch (error: any) {
     console.error(`Generation failed: ${error.message || error}`);

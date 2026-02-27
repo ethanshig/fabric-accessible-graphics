@@ -1,6 +1,47 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "preferences": {
+    "prefersReducedMotion": true,
+    "terminalProgressBarEnabled": false,
+    "spinnerTipsEnabled": false
+  },
+  "env": {
+    "RADICAL_ACCESSIBILITY_MEMORY_DIR": "${HOME}/.radical-accessibility/memory",
+    "CLAUDE_CODE_DISABLE_TERMINAL_TITLE": "1"
+  },
   "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ${CLAUDE_PROJECT_DIR}/src/hooks/screen-reader/announce.js"
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "matcher": "permission_prompt",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ${CLAUDE_PROJECT_DIR}/src/hooks/screen-reader/announce.js"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "AskUserQuestion",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ${CLAUDE_PROJECT_DIR}/src/hooks/screen-reader/announce.js"
+          }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "mcp__tactile__image_to_piaf",
@@ -10,10 +51,16 @@
             "command": "bun ${CLAUDE_PROJECT_DIR}/src/hooks/ConversionTracker.ts"
           }
         ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ${CLAUDE_PROJECT_DIR}/src/hooks/screen-reader/announce.js"
+          }
+        ]
       }
     ]
-  },
-  "env": {
-    "RADICAL_ACCESSIBILITY_MEMORY_DIR": "${HOME}/.radical-accessibility/memory"
   }
 }

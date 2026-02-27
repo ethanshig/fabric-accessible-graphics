@@ -48,13 +48,13 @@ Use this checklist to verify your installation is complete and working.
 
 - [ ] Can list presets
   ```bash
-  tact list-presets
+  tact presets
   # Should show 10 presets
   ```
 
 - [ ] Can convert an image
   ```bash
-  tact image-to-piaf samples/Sketch_Test.jpg --verbose
+  tact convert samples/Sketch_Test.jpg --verbose
   # Should create samples/Sketch_Test_piaf.pdf
   ```
 
@@ -68,14 +68,14 @@ Use this checklist to verify your installation is complete and working.
 
 - [ ] Can detect text and add Braille
   ```bash
-  tact image-to-piaf samples/ANNEX-PLANS-OFFICIAL_Page_1.jpg --detect-text --verbose
+  tact convert samples/ANNEX-PLANS-OFFICIAL_Page_1.jpg --detect-text --verbose
   ```
 
 ### Presets
 
 - [ ] Can use presets
   ```bash
-  tact image-to-piaf samples/Sketch_Test.jpg --preset sketch --verbose
+  tact convert samples/Sketch_Test.jpg --preset sketch --verbose
   ```
 
 ## MCP Server (Optional)
@@ -130,7 +130,7 @@ python3 -c "import louis; print(louis.version())" 2>/dev/null || echo "NOT INSTA
 
 echo ""
 echo "Testing conversion..."
-tact image-to-piaf samples/Sketch_Test.jpg -o /tmp/test_verify.pdf --verbose 2>&1 | tail -5
+tact convert samples/Sketch_Test.jpg -o /tmp/test_verify.pdf --verbose 2>&1 | tail -5
 
 if [ -f /tmp/test_verify.pdf ]; then
     echo "SUCCESS: Test PDF created"
@@ -258,7 +258,7 @@ If using PAI, add hooks to `~/.claude/settings.json`:
 
 If all checks pass, your installation is complete. You can now:
 
-1. Convert images: `tact image-to-piaf your-image.jpg`
+1. Convert images: `tact convert your-image.jpg`
 2. Use with PAI: Just say "convert to tactile" or "describe this image"
 3. Use with MCP: Configure in Claude Code settings
 

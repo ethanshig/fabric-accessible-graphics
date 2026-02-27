@@ -75,7 +75,7 @@ Based on user needs:
 Build and run the command:
 
 ```bash
-tact image-to-piaf IMAGE_PATH \
+tact convert IMAGE_PATH \
   --preset PRESET_NAME \
   --detect-text \
   --braille-grade 2 \
@@ -99,7 +99,7 @@ Check the results:
 
 If density too high:
 ```bash
-tact image-to-piaf IMAGE_PATH --auto-reduce-density --verbose
+tact convert IMAGE_PATH --auto-reduce-density --verbose
 ```
 
 ### Step 6: Present Results
@@ -125,7 +125,7 @@ Report to user:
 ```
 I'll convert the floor plan using the floor_plan preset with Braille labels.
 
-Running: tact image-to-piaf floor-plan.jpg --preset floor_plan --detect-text --braille-grade 2 --verbose
+Running: tact convert floor-plan.jpg --preset floor_plan --detect-text --braille-grade 2 --verbose
 
 Results:
 - Output: floor-plan_piaf.pdf

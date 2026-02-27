@@ -76,7 +76,7 @@ This displays:
 ### Step 2: Get help for a specific command
 
 ```bash
-tact image-to-piaf --help
+tact convert --help
 ```
 
 This shows all available options and examples.
@@ -88,7 +88,7 @@ This shows all available options and examples.
 Convert an image with all default settings:
 
 ```bash
-tact image-to-piaf my-floor-plan.jpg
+tact convert my-floor-plan.jpg
 ```
 
 **What happens:**
@@ -103,7 +103,7 @@ tact image-to-piaf my-floor-plan.jpg
 See detailed progress as the tool works:
 
 ```bash
-tact image-to-piaf my-floor-plan.jpg --verbose
+tact convert my-floor-plan.jpg --verbose
 ```
 
 **You'll see:**
@@ -134,7 +134,7 @@ Ready to print on PIAF machine
 Get prompted step-by-step:
 
 ```bash
-tact image-to-piaf my-floor-plan.jpg --interactive
+tact convert my-floor-plan.jpg --interactive
 ```
 
 **Interactive flow:**
@@ -159,7 +159,7 @@ Continue with these settings? [Y/n]: y
 Adjust the black/white threshold:
 
 ```bash
-tact image-to-piaf sketch.png --threshold 140 --verbose
+tact convert sketch.png --threshold 140 --verbose
 ```
 
 **When to adjust threshold:**
@@ -172,7 +172,7 @@ tact image-to-piaf sketch.png --threshold 140 --verbose
 Choose where to save the PDF:
 
 ```bash
-tact image-to-piaf drawing.jpg --output /path/to/output/final-print.pdf
+tact convert drawing.jpg --output /path/to/output/final-print.pdf
 ```
 
 ### Scenario 6: Large Format (Tabloid)
@@ -180,7 +180,7 @@ tact image-to-piaf drawing.jpg --output /path/to/output/final-print.pdf
 For larger drawings that need 11x17" paper:
 
 ```bash
-tact image-to-piaf large-elevation.png --paper-size tabloid --verbose
+tact convert large-elevation.png --paper-size tabloid --verbose
 ```
 
 ## Phase 2 Features - Advanced Conversion
@@ -194,7 +194,7 @@ Presets provide optimized settings for common image types. Instead of guessing t
 #### Step 1: See All Available Presets
 
 ```bash
-tact list-presets
+tact presets
 ```
 
 **You'll see:**
@@ -277,16 +277,16 @@ technical_drawing
 
 ```bash
 # For a floor plan
-tact image-to-piaf my-floor-plan.jpg --preset floor_plan --verbose
+tact convert my-floor-plan.jpg --preset floor_plan --verbose
 
 # For a hand sketch
-tact image-to-piaf my-sketch.png --preset sketch --verbose
+tact convert my-sketch.png --preset sketch --verbose
 
 # For a photograph
-tact image-to-piaf model-photo.jpg --preset photograph --verbose
+tact convert model-photo.jpg --preset photograph --verbose
 
 # For a site plan (automatically uses tabloid paper)
-tact image-to-piaf site.png --preset site_plan --verbose
+tact convert site.png --preset site_plan --verbose
 ```
 
 **What happens:**
@@ -302,10 +302,10 @@ If a preset is almost perfect but you want to tweak one setting:
 
 ```bash
 # Use floor_plan preset but change threshold
-tact image-to-piaf plan.jpg --preset floor_plan --threshold 150 --verbose
+tact convert plan.jpg --preset floor_plan --threshold 150 --verbose
 
 # Use sketch preset but disable enhancement
-tact image-to-piaf sketch.png --preset sketch --enhance none
+tact convert sketch.png --preset sketch --enhance none
 ```
 
 **Preset recommendations by image type:**
@@ -339,13 +339,13 @@ S-curve boosts midtone contrast, making lines crisper and more defined - like us
 
 ```bash
 # Standard S-curve (strength 1.0)
-tact image-to-piaf plan.jpg --enhance s_curve --verbose
+tact convert plan.jpg --enhance s_curve --verbose
 
 # Stronger enhancement for very faint images
-tact image-to-piaf faint-sketch.jpg --enhance s_curve --enhance-strength 1.5 --verbose
+tact convert faint-sketch.jpg --enhance s_curve --enhance-strength 1.5 --verbose
 
 # Subtle enhancement
-tact image-to-piaf drawing.jpg --enhance s_curve --enhance-strength 0.7 --verbose
+tact convert drawing.jpg --enhance s_curve --enhance-strength 0.7 --verbose
 ```
 
 **Strength guide:**
@@ -358,16 +358,16 @@ tact image-to-piaf drawing.jpg --enhance s_curve --enhance-strength 0.7 --verbos
 
 ```bash
 # Auto-contrast: Stretches histogram to full range
-tact image-to-piaf scan.jpg --enhance auto_contrast --verbose
+tact convert scan.jpg --enhance auto_contrast --verbose
 
 # CLAHE: Good for photographs with uneven lighting
-tact image-to-piaf photo.jpg --enhance clahe --verbose
+tact convert photo.jpg --enhance clahe --verbose
 
 # Histogram equalization: For very dark or light images
-tact image-to-piaf dark-image.jpg --enhance histogram --verbose
+tact convert dark-image.jpg --enhance histogram --verbose
 
 # No enhancement
-tact image-to-piaf crisp-cad.jpg --enhance none --verbose
+tact convert crisp-cad.jpg --enhance none --verbose
 ```
 
 **Method comparison:**
@@ -527,7 +527,7 @@ Warning: Density is 42%, target is 40%
 **Action:**
 1. Try increasing the threshold:
    ```bash
-   tact image-to-piaf plan.jpg --threshold 150
+   tact convert plan.jpg --threshold 150
    ```
 2. Or simplify the original image (remove unnecessary detail)
 
@@ -542,7 +542,7 @@ Error: Density too high: 48.5% (maximum: 45%)
 **Action:**
 1. Significantly increase threshold:
    ```bash
-   tact image-to-piaf plan.jpg --threshold 170
+   tact convert plan.jpg --threshold 170
    ```
 2. Or edit the original image to remove dense patterns
 
@@ -580,18 +580,18 @@ tact batch ./my-drawings ./output --preset floor_plan --verbose
 source venv/bin/activate
 
 # Convert each file
-tact image-to-piaf floor-plan-1.jpg --verbose
-tact image-to-piaf floor-plan-2.jpg --verbose
-tact image-to-piaf elevation.png --threshold 140 --verbose
+tact convert floor-plan-1.jpg --verbose
+tact convert floor-plan-2.jpg --verbose
+tact convert elevation.png --threshold 140 --verbose
 ```
 
 ### Workflow 2: Testing Different Presets
 
 ```bash
 # Try different presets to find the best result
-tact image-to-piaf sketch.png --preset sketch --output test-sketch-preset.pdf
-tact image-to-piaf sketch.png --preset floor_plan --output test-floor-preset.pdf
-tact image-to-piaf sketch.png --preset technical_drawing --output test-technical-preset.pdf
+tact convert sketch.png --preset sketch --output test-sketch-preset.pdf
+tact convert sketch.png --preset floor_plan --output test-floor-preset.pdf
+tact convert sketch.png --preset technical_drawing --output test-technical-preset.pdf
 
 # Review the PDFs and choose the best one
 ```
@@ -600,9 +600,9 @@ tact image-to-piaf sketch.png --preset technical_drawing --output test-technical
 
 ```bash
 # Try different S-curve strengths
-tact image-to-piaf faint-drawing.jpg --enhance s_curve --enhance-strength 0.8 --output test-08.pdf
-tact image-to-piaf faint-drawing.jpg --enhance s_curve --enhance-strength 1.0 --output test-10.pdf
-tact image-to-piaf faint-drawing.jpg --enhance s_curve --enhance-strength 1.3 --output test-13.pdf
+tact convert faint-drawing.jpg --enhance s_curve --enhance-strength 0.8 --output test-08.pdf
+tact convert faint-drawing.jpg --enhance s_curve --enhance-strength 1.0 --output test-10.pdf
+tact convert faint-drawing.jpg --enhance s_curve --enhance-strength 1.3 --output test-13.pdf
 
 # Review and choose the clearest one
 ```
@@ -614,13 +614,13 @@ tact image-to-piaf faint-drawing.jpg --enhance s_curve --enhance-strength 1.3 --
 source venv/bin/activate
 
 # 2. Convert your assignment drawing with appropriate preset
-tact image-to-piaf my-floor-plan.jpg --preset floor_plan --verbose
+tact convert my-floor-plan.jpg --preset floor_plan --verbose
 
 # 3. Review the output
 # Check my-floor-plan_piaf.pdf
 
 # 4. If needed, adjust and reconvert
-tact image-to-piaf my-floor-plan.jpg --preset floor_plan --threshold 145 --output my-floor-plan-v2.pdf --verbose
+tact convert my-floor-plan.jpg --preset floor_plan --threshold 145 --output my-floor-plan-v2.pdf --verbose
 
 # 5. Print the best version on PIAF machine
 ```
@@ -668,7 +668,7 @@ tact batch ./scanned-sketches ./output --preset sketch --enhance-strength 1.5 --
 
 ```bash
 # Let the preset handle all settings automatically
-tact image-to-piaf YOUR-IMAGE.jpg --preset PRESET-NAME --verbose
+tact convert YOUR-IMAGE.jpg --preset PRESET-NAME --verbose
 ```
 
 Choose preset based on your image type (see preset list above in Phase 2 section).
@@ -677,12 +677,12 @@ Choose preset based on your image type (see preset list above in Phase 2 section
 
 **Phase 2 Method (Recommended):**
 ```bash
-tact image-to-piaf plan.jpg --preset floor_plan --verbose
+tact convert plan.jpg --preset floor_plan --verbose
 ```
 
 **Manual Method:**
 ```bash
-tact image-to-piaf plan.jpg --threshold 140
+tact convert plan.jpg --threshold 140
 ```
 - Higher threshold works well for crisp, clean lines
 - Usually low density
@@ -691,12 +691,12 @@ tact image-to-piaf plan.jpg --threshold 140
 
 **Phase 2 Method (Recommended):**
 ```bash
-tact image-to-piaf sketch.jpg --preset sketch --verbose
+tact convert sketch.jpg --preset sketch --verbose
 ```
 
 **Manual Method:**
 ```bash
-tact image-to-piaf sketch.jpg --threshold 120 --enhance s_curve --enhance-strength 1.3 --verbose
+tact convert sketch.jpg --threshold 120 --enhance s_curve --enhance-strength 1.3 --verbose
 ```
 - S-curve enhancement helps boost faint pencil lines
 - Lower threshold preserves lighter lines
@@ -706,12 +706,12 @@ tact image-to-piaf sketch.jpg --threshold 120 --enhance s_curve --enhance-streng
 
 **Phase 2 Method (Recommended):**
 ```bash
-tact image-to-piaf model-photo.jpg --preset photograph --verbose
+tact convert model-photo.jpg --preset photograph --verbose
 ```
 
 **Manual Method:**
 ```bash
-tact image-to-piaf model-photo.jpg --threshold 110 --enhance clahe --verbose
+tact convert model-photo.jpg --threshold 110 --enhance clahe --verbose
 ```
 - CLAHE enhancement handles shadows and highlights
 - Lower threshold to capture details
@@ -721,12 +721,12 @@ tact image-to-piaf model-photo.jpg --threshold 110 --enhance clahe --verbose
 
 **Phase 2 Method (Recommended):**
 ```bash
-tact image-to-piaf section.png --preset section --verbose
+tact convert section.png --preset section --verbose
 ```
 
 **Manual Method:**
 ```bash
-tact image-to-piaf section.png --threshold 145 --verbose
+tact convert section.png --threshold 145 --verbose
 ```
 - Higher threshold reduces hatching density
 - Watch for density warnings on heavy hatching
@@ -736,10 +736,10 @@ tact image-to-piaf section.png --threshold 145 --verbose
 **Phase 2 Enhancement:**
 ```bash
 # Use S-curve to boost contrast
-tact image-to-piaf faint-scan.jpg --enhance s_curve --enhance-strength 1.5 --verbose
+tact convert faint-scan.jpg --enhance s_curve --enhance-strength 1.5 --verbose
 
 # Or use auto-contrast for scans with narrow tonal range
-tact image-to-piaf scan.jpg --enhance auto_contrast --verbose
+tact convert scan.jpg --enhance auto_contrast --verbose
 ```
 
 This makes faint lines more visible without manually editing the image.
@@ -825,7 +825,7 @@ pip install liblouis
 source venv/bin/activate
 
 # Detect text and convert to Braille
-tact image-to-piaf floor-plan.jpg --detect-text --verbose
+tact convert floor-plan.jpg --detect-text --verbose
 ```
 
 **What you'll see:**
@@ -845,10 +845,10 @@ Grade 2 Braille is contracted (shorter), while Grade 1 is uncontracted (letter-b
 
 ```bash
 # Grade 1 (default - uncontracted)
-tact image-to-piaf plan.jpg --detect-text --braille-grade 1 --verbose
+tact convert plan.jpg --detect-text --braille-grade 1 --verbose
 
 # Grade 2 (contracted - more compact)
-tact image-to-piaf plan.jpg --detect-text --braille-grade 2 --verbose
+tact convert plan.jpg --detect-text --braille-grade 2 --verbose
 ```
 
 ### Combined Usage Examples
@@ -857,23 +857,23 @@ tact image-to-piaf plan.jpg --detect-text --braille-grade 2 --verbose
 
 ```bash
 # Floor plan with text detection
-tact image-to-piaf floor-plan.jpg --detect-text --preset floor_plan --verbose
+tact convert floor-plan.jpg --detect-text --preset floor_plan --verbose
 
 # Sketch with text detection
-tact image-to-piaf sketch.png --detect-text --preset sketch --verbose
+tact convert sketch.png --detect-text --preset sketch --verbose
 ```
 
 #### Text Detection with Other Features
 
 ```bash
 # With automatic density reduction
-tact image-to-piaf dense-plan.jpg --detect-text --auto-reduce-density --verbose
+tact convert dense-plan.jpg --detect-text --auto-reduce-density --verbose
 
 # With tiling for large images
-tact image-to-piaf large-drawing.jpg --detect-text --enable-tiling --verbose
+tact convert large-drawing.jpg --detect-text --enable-tiling --verbose
 
 # All features combined
-tact image-to-piaf complex-plan.jpg \
+tact convert complex-plan.jpg \
   --detect-text \
   --braille-grade 2 \
   --preset floor_plan \
@@ -918,7 +918,7 @@ This tells you:
 source venv/bin/activate
 
 # 2. Process floor plan with text detection
-tact image-to-piaf my-floor-plan.jpg --detect-text --preset floor_plan --verbose
+tact convert my-floor-plan.jpg --detect-text --preset floor_plan --verbose
 
 # 3. Review the output
 # The PDF will have:
@@ -954,14 +954,14 @@ tact batch ./semester-project/plans ./output \
 #### For Hand-Drawn Sketches
 - Use enhancement to improve text clarity:
   ```bash
-  tact image-to-piaf sketch.jpg --detect-text --enhance s_curve --enhance-strength 1.3 --verbose
+  tact convert sketch.jpg --detect-text --enhance s_curve --enhance-strength 1.3 --verbose
   ```
 
 #### For Scanned Documents
 - Higher resolution scans improve text detection accuracy
 - Use auto-contrast enhancement:
   ```bash
-  tact image-to-piaf scan.jpg --detect-text --enhance auto_contrast --verbose
+  tact convert scan.jpg --detect-text --enhance auto_contrast --verbose
   ```
 
 ### Troubleshooting Text Detection
@@ -979,7 +979,7 @@ tact batch ./semester-project/plans ./output \
 tesseract --version
 
 # Try enhancing the image first
-tact image-to-piaf plan.jpg --detect-text --enhance s_curve --enhance-strength 1.5 --verbose
+tact convert plan.jpg --detect-text --enhance s_curve --enhance-strength 1.5 --verbose
 ```
 
 #### Problem: Incorrect text detection
@@ -1086,7 +1086,7 @@ ls -ld .
 ### Within the tool:
 ```bash
 tact --help                    # General help
-tact image-to-piaf --help      # Command-specific help
+tact convert --help      # Command-specific help
 tact info                      # Tool information
 ```
 
@@ -1104,46 +1104,46 @@ tact info                      # Tool information
 source venv/bin/activate
 
 # Basic conversion
-tact image-to-piaf IMAGE.jpg
+tact convert IMAGE.jpg
 
 # Verbose (see details)
-tact image-to-piaf IMAGE.jpg --verbose
+tact convert IMAGE.jpg --verbose
 
 # Interactive (step-by-step)
-tact image-to-piaf IMAGE.jpg --interactive
+tact convert IMAGE.jpg --interactive
 
 # Custom threshold
-tact image-to-piaf IMAGE.jpg --threshold 140
+tact convert IMAGE.jpg --threshold 140
 
 # Custom output
-tact image-to-piaf IMAGE.jpg --output result.pdf
+tact convert IMAGE.jpg --output result.pdf
 
 # Large paper
-tact image-to-piaf IMAGE.jpg --paper-size tabloid
+tact convert IMAGE.jpg --paper-size tabloid
 
 # Combined
-tact image-to-piaf IMAGE.jpg --threshold 140 --verbose --output result.pdf
+tact convert IMAGE.jpg --threshold 140 --verbose --output result.pdf
 ```
 
 ### Phase 2 Commands (Advanced - Recommended!)
 
 ```bash
 # List all available presets
-tact list-presets
+tact presets
 
 # Use a preset (EASIEST METHOD)
-tact image-to-piaf IMAGE.jpg --preset floor_plan --verbose
-tact image-to-piaf IMAGE.jpg --preset sketch --verbose
-tact image-to-piaf IMAGE.jpg --preset photograph --verbose
+tact convert IMAGE.jpg --preset floor_plan --verbose
+tact convert IMAGE.jpg --preset sketch --verbose
+tact convert IMAGE.jpg --preset photograph --verbose
 
 # S-curve enhancement
-tact image-to-piaf IMAGE.jpg --enhance s_curve --verbose
-tact image-to-piaf IMAGE.jpg --enhance s_curve --enhance-strength 1.5 --verbose
+tact convert IMAGE.jpg --enhance s_curve --verbose
+tact convert IMAGE.jpg --enhance s_curve --enhance-strength 1.5 --verbose
 
 # Other enhancements
-tact image-to-piaf IMAGE.jpg --enhance auto_contrast --verbose
-tact image-to-piaf IMAGE.jpg --enhance clahe --verbose
-tact image-to-piaf IMAGE.jpg --enhance histogram --verbose
+tact convert IMAGE.jpg --enhance auto_contrast --verbose
+tact convert IMAGE.jpg --enhance clahe --verbose
+tact convert IMAGE.jpg --enhance histogram --verbose
 
 # Batch processing (convert entire folder)
 tact batch ./input-folder ./output-folder --preset floor_plan --verbose
@@ -1158,23 +1158,23 @@ tact batch ./drawings ./output --threshold 140 --enhance s_curve --verbose
 tact batch ./images ./output --pattern "*.png,*.jpg" --preset sketch
 
 # Override preset settings
-tact image-to-piaf IMAGE.jpg --preset floor_plan --threshold 150 --verbose
+tact convert IMAGE.jpg --preset floor_plan --threshold 150 --verbose
 ```
 
 ### Phase 3 Commands (Text Detection & Braille - NEW!)
 
 ```bash
 # Detect text and add Braille labels (Grade 1)
-tact image-to-piaf floor-plan.jpg --detect-text --verbose
+tact convert floor-plan.jpg --detect-text --verbose
 
 # Use Grade 2 Braille (contracted)
-tact image-to-piaf plan.png --detect-text --braille-grade 2 --verbose
+tact convert plan.png --detect-text --braille-grade 2 --verbose
 
 # Combined with presets
-tact image-to-piaf drawing.jpg --detect-text --preset floor_plan --verbose
+tact convert drawing.jpg --detect-text --preset floor_plan --verbose
 
 # Combined with other features
-tact image-to-piaf large-plan.jpg --detect-text --auto-reduce-density --enable-tiling
+tact convert large-plan.jpg --detect-text --auto-reduce-density --enable-tiling
 
 # Batch processing with text detection
 tact batch ./plans ./output --detect-text --preset floor_plan --verbose

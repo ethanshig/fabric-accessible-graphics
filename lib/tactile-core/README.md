@@ -54,16 +54,16 @@ pip install liblouis
 
 ```bash
 # Basic conversion
-tact image-to-piaf input.jpg
+tact convert input.jpg
 
 # With preset
-tact image-to-piaf input.jpg --preset floor_plan
+tact convert input.jpg --preset floor_plan
 
 # With Braille labels
-tact image-to-piaf input.jpg --detect-text --braille-grade 2
+tact convert input.jpg --detect-text --braille-grade 2
 
 # List available presets
-tact list-presets
+tact presets
 ```
 
 ## Python API

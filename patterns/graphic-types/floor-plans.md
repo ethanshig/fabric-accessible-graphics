@@ -205,7 +205,7 @@ NOTE: Lower threshold (130) captures lighter furniture lines
 
 ### Reference: ANNEX-PLANS-OFFICIAL_Page_1.jpg
 
-LOCATION: /mnt/c/Users/ethan/fabric-accessible-graphics/ANNEX-PLANS-OFFICIAL_Page_1.jpg
+LOCATION: ANNEX-PLANS-OFFICIAL_Page_1.jpg
 TYPE: Foundation/structural floor plan
 SIZE: 6221 x 7155 pixels (requires tiling or scaling)
 
@@ -233,7 +233,7 @@ CONSIDERATIONS:
 
 ### Reference: plan_test.jpg
 
-LOCATION: /mnt/c/Users/ethan/fabric-accessible-graphics/plan_test.jpg
+LOCATION: plan_test.jpg
 TYPE: Simple floor plan sketch
 SIZE: 792 x 612 pixels (fits on letter)
 

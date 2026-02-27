@@ -313,7 +313,8 @@ def undo_cmd():
 @click.option("--host", default="127.0.0.1", help="RhinoMCP host")
 @click.option("--port", default=1999, type=int, help="RhinoMCP port")
 def connect_cmd(host, port):
-    """Test Rhino connection."""
+    """Test Rhino connection and set LightPen display mode."""
+    from tasc_core.rhino.commands import RhinoDrawer
     from tasc_core.rhino.connector import RhinoConnector
 
     connector = RhinoConnector(host=host, port=port)
@@ -321,11 +322,89 @@ def connect_cmd(host, port):
 
     if mode == "mcp":
         _output(f"Connected to Rhino via MCP socket at {connector.host}:{port}")
+        drawer = RhinoDrawer(connector)
+        drawer.set_display_mode("LightPen")
+        _output("Display mode set to LightPen.")
     elif mode == "rhinocode":
         _output("Connected to Rhino via RhinoCode CLI")
     else:
         _output("Offline mode. No Rhino connection available.")
         _output("Start Rhino with RhinoMCP plugin, or install rhinocode CLI.")
+
+
+@main.command(name="display")
+@click.argument("mode", required=False)
+def display_cmd(mode):
+    """Get or set viewport display mode. Without argument, shows current mode."""
+    try:
+        connector, drawer, conn_mode = _get_connector()
+    except Exception:
+        _output("Cannot connect to Rhino.")
+        return
+
+    if not connector.is_live:
+        _output("Not connected to Rhino.")
+        return
+
+    if not mode:
+        # Query current mode
+        from tasc_core.rhino.protocol import execute_script_cmd
+        script = (
+            "import rhinoscriptsyntax as rs\n"
+            "print(rs.ViewDisplayMode())\n"
+        )
+        try:
+            result = connector.send("execute_rhinoscript_python_code", {"code": script})
+            current = result.get("output", "unknown").strip()
+            _output(f"Current display mode: {current}")
+        except Exception:
+            _output("Could not query display mode.")
+        return
+
+    result = drawer.set_display_mode(mode)
+    if result and "Switched" in result:
+        _output(f"Display mode set to {mode}.")
+    elif result and "not found" in result:
+        _output(result.strip())
+    else:
+        _output(f"Attempted to set display mode to {mode}.")
+
+
+@main.command(name="capture")
+@click.argument("output", required=False, default=None)
+@click.option("--viewport", default="Top", help="Viewport to capture (Top, Front, Right, Perspective)")
+@click.option("--paper", default="letter", type=click.Choice(["letter", "tabloid"]), help="Paper size for output dimensions")
+def capture_cmd(output, viewport, paper):
+    """Capture viewport as TACT-ready image (white bg, black lines).
+
+    Temporarily switches to Pen mode for capture, then restores LightPen.
+    Output is a PNG suitable for direct TACT conversion.
+    """
+    if paper == "tabloid":
+        w, h = 3300, 5100
+    else:
+        w, h = 2550, 3300
+
+    if not output:
+        output = f"capture_{viewport.lower()}.png"
+
+    try:
+        connector, drawer, mode = _get_connector()
+    except Exception:
+        _output("Cannot connect to Rhino.")
+        return
+
+    if not connector.is_live:
+        _output("Not connected to Rhino.")
+        return
+
+    _output(f"Capturing {viewport} viewport to {output}...")
+    result = drawer.capture_for_tact(output, viewport=viewport, width=w, height=h)
+    if result:
+        _output(f"Saved: {result}")
+        _output("Image has white background, black lines. Ready for tact convert.")
+    else:
+        _output("Capture failed. Check Rhino viewport is visible.")
 
 
 @main.command(name="reset")

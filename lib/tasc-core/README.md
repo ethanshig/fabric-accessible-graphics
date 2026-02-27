@@ -12,7 +12,7 @@ TASC lives inside the `fabric-accessible-graphics` repo alongside TACT. It uses 
 
 ```bash
 # From the repo root
-cd /mnt/c/Users/ethan/fabric-accessible-graphics
+cd path/to/fabric-accessible-graphics
 
 # Activate the virtual environment
 source venv/bin/activate

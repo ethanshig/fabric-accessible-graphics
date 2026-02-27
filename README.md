@@ -4,7 +4,7 @@ pack-id: pai-radical-accessibility-v1.1.0
 version: 1.1.0
 author: ethanshig
 description: Make architectural graphics accessible to blind and low-vision students through tactile conversion, AI generation, and rich descriptions
-type: skill-bundle
+type: toolkit
 purpose-type: [accessibility, architecture, tactile-graphics, education]
 platform: any
 dependencies: [python3.10+]
@@ -15,7 +15,7 @@ keywords: [accessibility, tactile, PIAF, braille, architecture, blind, low-visio
 
 **Make architectural graphics accessible to blind and low-vision students.**
 
-A PAI Pack providing four skills for converting, generating, describing, and designing architectural graphics for PIAF (Picture In A Flash) tactile printing.
+A toolkit for converting, generating, describing, and designing architectural graphics for PIAF (Picture In A Flash) tactile printing. Works standalone with Claude Code or as a PAI Pack.
 
 ## The Four Skills
 
@@ -34,10 +34,10 @@ cd radical-accessibility
 pip install -e ./lib/tactile-core
 
 # Convert an image
-tact image-to-piaf floor-plan.jpg --preset floor_plan --verbose
+tact convert floor-plan.jpg --preset floor_plan --verbose
 
 # With Braille labels
-tact image-to-piaf plan.jpg --detect-text --braille-grade 2
+tact convert plan.jpg --detect-text --braille-grade 2
 ```
 
 See [INSTALL.md](INSTALL.md) for complete installation instructions.
@@ -52,16 +52,16 @@ Convert existing images to tactile-ready PDFs using code-based processing.
 
 ```bash
 # Basic conversion
-tact image-to-piaf floor-plan.jpg
+tact convert floor-plan.jpg
 
 # With preset for optimal settings
-tact image-to-piaf sketch.png --preset sketch
+tact convert sketch.png --preset sketch
 
 # With Braille labels
-tact image-to-piaf plan.jpg --detect-text --braille-grade 2
+tact convert plan.jpg --detect-text --braille-grade 2
 
 # Automatic density reduction for complex images
-tact image-to-piaf dense-drawing.jpg --auto-reduce-density
+tact convert dense-drawing.jpg --auto-reduce-density
 ```
 
 **Available Presets**: floor_plan, section, elevation, site_plan, sketch, diagram, technical_drawing, photograph, presentation, detail_drawing
@@ -103,9 +103,30 @@ TASC commands cover the full structural design workflow:
 | `tasc corridor` / `tasc void` | Corridors and courtyards within bays |
 | `tasc label` | Text and Braille labels |
 | `tasc undo` / `tasc remove` | Undo last command or remove elements |
+| `tasc connect` | Test Rhino connection (auto-sets LightPen display mode) |
+| `tasc display [MODE]` | Get or set viewport display mode |
+| `tasc capture [FILE]` | Capture viewport for TACT (switches to Pen mode, captures, restores LightPen) |
 | `tasc export piaf\|3dm\|text` | Export to tactile PDF, Rhino file, or text |
 
+**Rhino-to-TACT workflow**: TASC uses LightPen display mode for design (dark background, light lines). For TACT/PIAF export, `tasc capture` temporarily switches to Pen mode (white background, black lines), captures the viewport, and restores LightPen. This ensures correct thresholding.
+
 See [lib/tasc-core/README.md](lib/tasc-core/README.md) for the full TASC CLI and DSL reference.
+
+### Accessible Client (acclaude)
+
+A JAWS/NVDA-compatible Claude Code client that bypasses the Ink TUI entirely. Uses `claude -p` headless mode with plain text output only.
+
+```bash
+# From WSL2/Linux:
+./bin/acclaude
+
+# From Windows (double-click):
+bin\acclaude.bat
+```
+
+Features: multi-turn sessions, session persistence, JAWS announcement, slash commands (`/help`, `/repeat`, `/history`, `/new`, `/quit`).
+
+See [INSTALL.md](INSTALL.md) Step 7 for setup.
 
 ## AI Installation
 
@@ -161,7 +182,7 @@ radical-accessibility/
 │       ├── pyproject.toml
 │       └── src/tasc_core/
 ├── src/
-│   ├── skills/                # PAI skill definitions
+│   ├── skills/                # Skill definitions (PAI integration, optional)
 │   │   ├── TactileConversion/
 │   │   ├── TactileGeneration/
 │   │   ├── AccessibleDescription/
@@ -204,9 +225,9 @@ Memory data is stored in `~/.radical-accessibility/memory/` and includes:
 
 See [src/hooks/README.md](src/hooks/README.md) for configuration.
 
-## For Non-PAI Users
+## MCP Server Setup (Claude Code)
 
-If you're using Claude Code without PAI, you can use the MCP server directly:
+To use with Claude Code, configure the MCP server:
 
 ```json
 {
@@ -223,12 +244,12 @@ See [mcp/README.md](mcp/README.md) for details.
 
 ## CLI Reference
 
-### image-to-piaf
+### convert
 
 Convert an image to PIAF-ready PDF format.
 
 ```bash
-tact image-to-piaf IMAGE [OPTIONS]
+tact convert IMAGE [OPTIONS]
 ```
 
 Key options:
@@ -251,12 +272,12 @@ Batch convert multiple images.
 tact batch INPUT_DIR OUTPUT_DIR [OPTIONS]
 ```
 
-### list-presets
+### presets
 
 Show available conversion presets.
 
 ```bash
-tact list-presets
+tact presets
 ```
 
 ## Accessibility Design

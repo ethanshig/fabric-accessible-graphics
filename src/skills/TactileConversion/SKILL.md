@@ -32,16 +32,16 @@ Use **TactileGeneration** instead when:
 
 ```bash
 # Basic conversion
-tact image-to-piaf floor-plan.jpg
+tact convert floor-plan.jpg
 
 # With preset
-tact image-to-piaf sketch.png --preset sketch
+tact convert sketch.png --preset sketch
 
 # With Braille labels
-tact image-to-piaf plan.jpg --detect-text --braille-grade 2
+tact convert plan.jpg --detect-text --braille-grade 2
 
 # Auto-fix high density
-tact image-to-piaf dense.jpg --auto-reduce-density
+tact convert dense.jpg --auto-reduce-density
 ```
 
 ## Available Presets
@@ -88,13 +88,13 @@ Load before complex conversions:
 
 ```bash
 # Convert a floor plan with preset and Braille labels
-tact image-to-piaf floor-plan.jpg --preset floor_plan --detect-text --braille-grade 2 --verbose
+tact convert floor-plan.jpg --preset floor_plan --detect-text --braille-grade 2 --verbose
 
 # Batch convert a folder of sketches
 tact batch ./sketches ./output --preset sketch --detect-text --verbose
 
 # Convert with zoom to a specific region
-tact image-to-piaf plan.jpg --preset floor_plan --zoom-region 25,30,50,40 --verbose
+tact convert plan.jpg --preset floor_plan --zoom-region 25,30,50,40 --verbose
 ```
 
 ## Output

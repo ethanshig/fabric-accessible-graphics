@@ -277,8 +277,38 @@ This usually means the font doesn't support Braille Unicode. The library uses De
 
 If you see density warnings, use:
 ```bash
-tact image-to-piaf image.jpg --auto-reduce-density
+tact convert image.jpg --auto-reduce-density
 ```
+
+## Step 7: Accessible Client (Optional - for JAWS/NVDA screen readers)
+
+If you use a screen reader, the standard Claude Code TUI is unusable. The `acclaude` client wraps Claude in headless mode with plain-text output.
+
+### Install Node.js dependencies
+
+```bash
+npm install tsx
+# Or if using nvm:
+nvm use --lts
+```
+
+### Run acclaude
+
+**From WSL2/Linux:**
+```bash
+./bin/acclaude
+```
+
+**From Windows (double-click or cmd):**
+```
+bin\acclaude.bat
+```
+
+The client provides:
+- Plain text only (no Ink TUI, no ANSI, no spinners)
+- Multi-turn conversation with session persistence
+- Slash commands: `/help`, `/repeat`, `/history`, `/new`, `/quit`
+- JAWS announcement via WSL2-to-PowerShell bridge
 
 ## What's Next?
 

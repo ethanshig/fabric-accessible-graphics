@@ -66,7 +66,6 @@ def get_arch_alt_text_prompt() -> str:
     # Try to load from the patterns directory first
     possible_paths = [
         Path(__file__).parent.parent.parent.parent / "patterns" / "image_description_machine" / "image_description_machine.md",
-        Path("/mnt/c/Users/ethan/fabric-accessible-graphics/patterns/image_description_machine/image_description_machine.md"),
     ]
 
     for prompt_path in possible_paths:

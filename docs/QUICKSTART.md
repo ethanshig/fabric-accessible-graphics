@@ -31,7 +31,7 @@ You should see toolkit information and "Ready to convert images!"
 ## Your First Conversion
 
 ```bash
-tact image-to-piaf samples/plan_test.jpg --preset floor_plan --verbose
+tact convert samples/plan_test.jpg --preset floor_plan --verbose
 ```
 
 This converts a sample floor plan to a PIAF-ready PDF. You'll see:
@@ -54,25 +54,25 @@ The toolkit:
 ### Add Braille Labels
 Detect text in the image and convert to Braille:
 ```bash
-tact image-to-piaf samples/plan_test.jpg --detect-text --verbose
+tact convert samples/plan_test.jpg --detect-text --verbose
 ```
 
 ### Use Different Presets
 Each preset is optimized for different image types:
 ```bash
 # For hand-drawn sketches
-tact image-to-piaf your-sketch.jpg --preset sketch
+tact convert your-sketch.jpg --preset sketch
 
 # For photographs
-tact image-to-piaf photo.jpg --preset photograph
+tact convert photo.jpg --preset photograph
 
 # See all presets
-tact list-presets
+tact presets
 ```
 
 ### Enhance Low-Contrast Images
 ```bash
-tact image-to-piaf faint-drawing.jpg --enhance s_curve --verbose
+tact convert faint-drawing.jpg --enhance s_curve --verbose
 ```
 
 ### Process Multiple Files
@@ -94,6 +94,6 @@ tact batch ./input-folder ./output-folder --preset floor_plan
 
 ## Next Steps
 
-- See all options: `tact image-to-piaf --help`
+- See all options: `tact convert --help`
 - Full documentation: [README.md](../README.md)
 - Text detection guide: [TEXT_DETECTION_QUICKSTART.md](guides/TEXT_DETECTION_QUICKSTART.md)
