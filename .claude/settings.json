@@ -6,7 +6,7 @@
     "spinnerTipsEnabled": false
   },
   "env": {
-    "RADICAL_ACCESSIBILITY_MEMORY_DIR": "${HOME}/.radical-accessibility/memory",
+    "RADICAL_ACCESSIBILITY_MEMORY_DIR": "~/.radical-accessibility/memory",
     "CLAUDE_CODE_DISABLE_TERMINAL_TITLE": "1"
   },
   "hooks": {

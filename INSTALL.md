@@ -9,6 +9,7 @@ Before starting, verify you have:
 - [ ] Python 3.10 or higher
 - [ ] pip (Python package installer)
 - [ ] Git (to clone the repository)
+- [ ] WSL2 (Windows users only)
 
 ```bash
 # Check Python version
@@ -17,6 +18,16 @@ python3 --version  # Should show 3.10 or higher
 # Check pip
 pip --version
 ```
+
+### Windows Users: Install WSL2 First
+
+All tools run inside WSL2 (Windows Subsystem for Linux). If you don't have it:
+
+1. Open PowerShell as Administrator
+2. Run: `wsl --install`
+3. Restart your computer
+4. Open "Ubuntu" from the Start menu to finish setup
+5. All remaining steps happen inside the WSL2 terminal
 
 ## Step 1: Clone the Repository
 
@@ -320,6 +331,7 @@ After installation:
 4. Read the [README](README.md) for full feature documentation
 5. Read [lib/tasc-core/README.md](lib/tasc-core/README.md) for TASC command reference
 6. Check [VERIFY.md](VERIFY.md) to confirm everything works
+7. Read [docs/WALKTHROUGH.md](docs/WALKTHROUGH.md) for detailed usage examples
 
 ## Getting Help
 

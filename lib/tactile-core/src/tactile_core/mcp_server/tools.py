@@ -27,7 +27,6 @@ def _ensure_imports():
     global BrailleConverter, BrailleConfig, KeyEntry
     global TextDetector, TextDetectionConfig, DetectedText
     global EasyOCRDetector
-    global HybridTextDetector
     global create_grid_overlay, grid_cell_to_percent
     global cache_tesseract_results, load_cached_tesseract
     global analyze_label_fit
@@ -40,7 +39,6 @@ def _ensure_imports():
     from tactile_core.core.braille_converter import BrailleConverter as _BC, BrailleConfig as _BCfg, KeyEntry as _KE
     from tactile_core.core.text_detector import TextDetector as _TD, TextDetectionConfig as _TDC, DetectedText as _DT
     from tactile_core.core.easyocr_detector import EasyOCRDetector as _EOD
-    from tactile_core.core.hybrid_text_detector import HybridTextDetector as _HTD
     from tactile_core.core.grid_overlay import create_grid_overlay as _CGO, grid_cell_to_percent as _GCP
     from tactile_core.utils.cache import cache_tesseract_results as _CTR, load_cached_tesseract as _LCT
     from tactile_core.core.label_scaler import analyze_label_fit as _ALF
@@ -53,7 +51,6 @@ def _ensure_imports():
     BrailleConverter, BrailleConfig, KeyEntry = _BC, _BCfg, _KE
     TextDetector, TextDetectionConfig, DetectedText = _TD, _TDC, _DT
     EasyOCRDetector = _EOD
-    HybridTextDetector = _HTD
     create_grid_overlay, grid_cell_to_percent = _CGO, _GCP
     cache_tesseract_results, load_cached_tesseract = _CTR, _LCT
     analyze_label_fit = _ALF

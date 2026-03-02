@@ -32,6 +32,9 @@ batch-output/
 !docs/**/*.pdf
 !patterns/**/*.pdf
 
+# Variable expansion bug artifacts
+${HOME}/
+
 # Temp files
 *.tmp
 *.temp
@@ -76,3 +79,6 @@ test_output/
 # Rhino files (root-level build artifacts)
 *.3dm
 *.3dmbak
+
+# Lock files
+lib/tactile-core/uv.lock

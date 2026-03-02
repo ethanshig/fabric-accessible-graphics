@@ -17,14 +17,13 @@ keywords: [accessibility, tactile, PIAF, braille, architecture, blind, low-visio
 
 A toolkit for converting, generating, describing, and designing architectural graphics for PIAF (Picture In A Flash) tactile printing. Works standalone with Claude Code or as a PAI Pack.
 
-## The Four Skills
+## Capabilities
 
-| Skill | Purpose | Use When |
-|-------|---------|----------|
-| **TactileConversion** | Process existing images into tactile PDFs | Source is clean, quick conversion needed |
-| **TactileGeneration** | AI-powered tactile image creation | Source is complex/cluttered, or creating from description |
-| **AccessibleDescription** | Rich verbal descriptions (Arch-Alt-Text) | Quick understanding without printing, remote access |
-| **AccessibleRhino** | Programmatic Rhino design via TASC CLI | Creating or modifying building layouts with accessible feedback |
+| Capability | Purpose | Use When |
+|------------|---------|----------|
+| **Tactile Conversion** (TACT CLI + MCP) | Convert images to PIAF-ready tactile PDFs | You have an image that needs tactile output |
+| **Accessible Description** (MCP tool) | Rich verbal descriptions via Arch-Alt-Text | Quick understanding without printing |
+| **Accessible Rhino** (TASC CLI) | Programmatic Rhino design with accessible feedback | Creating or modifying building layouts |
 
 ## Quick Start
 
@@ -42,13 +41,11 @@ tact convert plan.jpg --detect-text --braille-grade 2
 
 See [INSTALL.md](INSTALL.md) for complete installation instructions.
 
-## Skills Overview
+## Usage
 
-### TactileConversion
+### Tactile Conversion
 
 Convert existing images to tactile-ready PDFs using code-based processing.
-
-**Triggers**: "convert to tactile", "make tactile version", "PIAF conversion"
 
 ```bash
 # Basic conversion
@@ -66,33 +63,20 @@ tact convert dense-drawing.jpg --auto-reduce-density
 
 **Available Presets**: floor_plan, section, elevation, site_plan, sketch, diagram, technical_drawing, photograph, presentation, detail_drawing
 
-### TactileGeneration
-
-Create NEW tactile images using AI when source images are too complex or cluttered.
-
-**Triggers**: "generate tactile", "simplify for tactile", "stratify drawing"
-
-- Interpret and recreate complex drawings as clean tactile graphics
-- Stratify multi-system drawings into separate layers
-- Generate from text descriptions (no source image needed)
-- Post-process through tactile-core for Braille labels
-
-### AccessibleDescription
+### Accessible Description
 
 Generate rich verbal descriptions following the Arch-Alt-Text framework.
-
-**Triggers**: "describe image", "explain drawing", "accessibility description"
 
 Three-layer descriptions:
 1. **Macro**: Medium, subject, purpose (3 sentences)
 2. **Meso**: Composition, layout, relationships (4+ sentences)
 3. **Micro**: Details, dimensions, materials, analogies (8+ sentences)
 
-### AccessibleRhino
+Use the MCP tool `describe_image` or see `docs/references/ArchAltText.md` for the full framework.
+
+### Accessible Rhino
 
 Programmatic architectural design through the TASC (Tactile Architecture Scripting Console) CLI. Gives blind and low-vision architects direct control of Rhino site layouts with accessible text feedback.
-
-**Triggers**: "design in Rhino", "create floor plan", "place bay", "TASC command"
 
 TASC commands cover the full structural design workflow:
 
@@ -128,13 +112,13 @@ Features: multi-turn sessions, session persistence, JAWS announcement, slash com
 
 See [INSTALL.md](INSTALL.md) Step 7 for setup.
 
-## AI Installation
+## AI Integration
 
-This pack is designed for AI-assisted installation. When Claude Code opens this repository:
+When Claude Code opens this repository:
 
 1. It reads `.claude.md` for project context and capabilities
-2. It reads `src/skills/*/SKILL.md` for available skills and triggers
-3. It reads `.claude/CLAUDE.md` for screen-reader-specific interaction rules
+2. It reads `.claude/CLAUDE.md` for screen-reader-specific interaction rules
+3. The TACT MCP server provides conversion tools directly to Claude
 
 To install the Python libraries:
 
@@ -182,17 +166,12 @@ radical-accessibility/
 │       ├── pyproject.toml
 │       └── src/tasc_core/
 ├── src/
-│   ├── skills/                # Skill definitions (PAI integration, optional)
-│   │   ├── TactileConversion/
-│   │   ├── TactileGeneration/
-│   │   ├── AccessibleDescription/
-│   │   └── AccessibleRhino/
-│   ├── tools/                 # TypeScript tool wrappers
-│   ├── hooks/                 # Optional hooks
-│   └── shared/                # Shared guidelines
-├── mcp/                       # MCP server for non-PAI users
+│   ├── accessible-client/     # acclaude - JAWS-compatible Claude client
+│   └── hooks/                 # Screen reader + learning hooks
+├── mcp/                       # MCP server entry point for Claude Code
+├── patterns/                  # Tactile guidelines + Arch-Alt-Text prompt
 ├── samples/                   # Test images
-└── docs/                      # Documentation
+└── docs/                      # Documentation and references
 ```
 
 ## The Two CLIs
@@ -204,30 +183,9 @@ radical-accessibility/
 
 See [lib/tasc-core/README.md](lib/tasc-core/README.md) for full TASC documentation.
 
-## Optional Hooks (Learning System)
-
-For enhanced functionality, install the optional hooks:
-
-- **ImageDetector** - Proactively offers tactile conversion when architectural images are detected
-- **ConversionTracker** - Records all conversion attempts for learning
-- **FeedbackCapture** - Captures student ratings to improve recommendations
-
-```bash
-# Test hook functionality
-echo '{"message": "here is a floor plan"}' | bun src/hooks/ImageDetector.ts
-```
-
-Memory data is stored in `~/.radical-accessibility/memory/` and includes:
-- Conversion history with settings used
-- Learned preferences by image type
-- Student feedback and ratings
-- Aggregated insights
-
-See [src/hooks/README.md](src/hooks/README.md) for configuration.
-
 ## MCP Server Setup (Claude Code)
 
-To use with Claude Code, configure the MCP server:
+To use with Claude Code, configure the MCP server. See [docs/MCP_SETUP.md](docs/MCP_SETUP.md) for full details, or use the quick setup:
 
 ```json
 {
@@ -240,7 +198,9 @@ To use with Claude Code, configure the MCP server:
 }
 ```
 
-See [mcp/README.md](mcp/README.md) for details.
+## Optional Hooks (Learning System)
+
+Screen reader hooks and conversion tracking hooks are included in `src/hooks/`. See [src/hooks/README.md](src/hooks/README.md) for configuration.
 
 ## CLI Reference
 
@@ -297,7 +257,7 @@ This toolkit is designed for screen-reader users:
 - EasyOCR (for text detection — installed via pip, no system package needed)
 - Liblouis (optional, for Grade 2 Braille)
 - Poppler (optional, for multi-page PDF input — `apt install poppler-utils`)
-- Bun (optional, for hooks/learning system)
+- Node.js (optional, for screen reader hooks)
 - rhinomcp (optional, `pip install rhinomcp` — for Claude Code to Rhino MCP bridge)
 - RhinoMCP Rhino plugin (optional — for live TASC to Rhino viewport connection)
 

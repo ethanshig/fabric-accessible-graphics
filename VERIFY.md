@@ -27,12 +27,12 @@ Use this checklist to verify your installation is complete and working.
 
 ## System Dependencies
 
-- [ ] Tesseract OCR installed
+- [ ] Tesseract OCR installed (optional fallback, EasyOCR is primary)
   ```bash
   tesseract --version
   ```
 
-- [ ] Poppler installed
+- [ ] Poppler installed (optional, for multi-page PDF input)
   ```bash
   pdftoppm -v
   ```
@@ -86,25 +86,6 @@ Use this checklist to verify your installation is complete and working.
   # Should start without errors (Ctrl+C to stop)
   ```
 
-## PAI Integration (Optional)
-
-If using PAI, verify skills are discoverable:
-
-- [ ] TactileConversion skill exists
-  ```bash
-  ls src/skills/TactileConversion/
-  ```
-
-- [ ] TactileGeneration skill exists
-  ```bash
-  ls src/skills/TactileGeneration/
-  ```
-
-- [ ] AccessibleDescription skill exists
-  ```bash
-  ls src/skills/AccessibleDescription/
-  ```
-
 ## Quick Validation Script
 
 Run all checks at once:
@@ -154,104 +135,6 @@ echo "=== Verification Complete ==="
 | Liblouis | Optional - see INSTALL.md Step 3 |
 | Conversion test | Check error messages, verify dependencies |
 
-## Phase 6: Hooks and Memory Integration (Optional)
-
-These optional features enable proactive image detection and learning from usage.
-
-### Hooks Structure
-
-- [ ] ImageDetector hook exists
-  ```bash
-  ls src/hooks/ImageDetector.ts
-  ```
-
-- [ ] ConversionTracker hook exists
-  ```bash
-  ls src/hooks/ConversionTracker.ts
-  ```
-
-- [ ] FeedbackCapture hook exists
-  ```bash
-  ls src/hooks/FeedbackCapture.ts
-  ```
-
-- [ ] Memory module exists
-  ```bash
-  ls src/hooks/lib/memory.ts
-  ```
-
-### Hook Functionality
-
-- [ ] ImageDetector parses input correctly
-  ```bash
-  echo '{"message": "here is a floor plan", "attachments": [{"type": "image"}]}' | bun src/hooks/ImageDetector.ts
-  # Should output JSON with detected: true, category: floor_plan
-  ```
-
-- [ ] Memory directory creation works
-  ```bash
-  bun -e "import m from './src/hooks/lib/memory'; m.ensureMemorySetup(); console.log('OK')"
-  # Should create ~/.radical-accessibility/memory/
-  ```
-
-### Memory Integration
-
-- [ ] Conversion recording works
-  ```bash
-  bun -e "
-    import m from './src/hooks/lib/memory';
-    const id = m.recordConversion({
-      session_id: 'test',
-      image_type: 'floor_plan',
-      preset_used: 'floor_plan',
-      settings: {},
-      success: true
-    });
-    console.log('Recorded:', id);
-  "
-  ```
-
-- [ ] Feedback recording works
-  ```bash
-  bun -e "
-    import m from './src/hooks/lib/memory';
-    m.recordFeedback({
-      conversion_id: 'test-123',
-      rating: 4,
-      comment: 'Good conversion',
-      tags: ['clear']
-    });
-    console.log('OK');
-  "
-  ```
-
-- [ ] Memory stats available
-  ```bash
-  bun -e "
-    import m from './src/hooks/lib/memory';
-    console.log(m.getMemoryStats());
-  "
-  ```
-
-### Hook Installation (PAI Users)
-
-If using PAI, add hooks to `~/.claude/settings.json`:
-
-```json
-{
-  "hooks": {
-    "PostToolUse": [
-      {
-        "matcher": "mcp__tactile__*",
-        "hooks": [
-          { "type": "command", "command": "bun /path/to/src/hooks/ConversionTracker.ts" }
-        ]
-      }
-    ]
-  }
-}
-```
-
 ---
 
 ## All Checks Passed?
@@ -259,7 +142,7 @@ If using PAI, add hooks to `~/.claude/settings.json`:
 If all checks pass, your installation is complete. You can now:
 
 1. Convert images: `tact convert your-image.jpg`
-2. Use with PAI: Just say "convert to tactile" or "describe this image"
-3. Use with MCP: Configure in Claude Code settings
+2. Use with Claude Code: Say "convert to tactile" or "describe this image"
+3. Configure MCP: See [docs/MCP_SETUP.md](docs/MCP_SETUP.md)
 
 See [README.md](README.md) for full usage documentation.

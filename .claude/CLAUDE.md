@@ -85,6 +85,16 @@ RhinoPython (flexible, fallback):
 - One-off operations
 - Advanced Rhino features (materials, rendering, analysis)
 
+## Accessible Description (Arch-Alt-Text)
+
+When the user asks to describe an architectural image for accessibility:
+
+1. Use the MCP tool `describe_image` which follows the Arch-Alt-Text framework
+2. Three layers: Macro (medium, subject, purpose), Meso (composition, layout),
+   Micro (details, dimensions, materials, analogies)
+3. Full framework reference: docs/references/ArchAltText.md
+4. Architectural vocabulary reference: docs/references/ArchitecturalContext.md
+
 ## Parameter Gathering
 
 Before running any command, gather required parameters from the user:
